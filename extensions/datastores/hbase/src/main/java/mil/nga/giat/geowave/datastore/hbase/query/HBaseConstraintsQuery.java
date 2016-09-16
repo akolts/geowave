@@ -21,12 +21,14 @@ import mil.nga.giat.geowave.core.store.adapter.AdapterStore;
 import mil.nga.giat.geowave.core.store.adapter.DataAdapter;
 import mil.nga.giat.geowave.core.store.adapter.statistics.DuplicateEntryCount;
 import mil.nga.giat.geowave.core.store.callback.ScanCallback;
+import mil.nga.giat.geowave.core.store.data.CommonIndexedPersistenceEncoding;
 import mil.nga.giat.geowave.core.store.filter.DedupeFilter;
 import mil.nga.giat.geowave.core.store.filter.QueryFilter;
 import mil.nga.giat.geowave.core.store.index.PrimaryIndex;
 import mil.nga.giat.geowave.core.store.query.ConstraintsQuery;
 import mil.nga.giat.geowave.core.store.query.Query;
 import mil.nga.giat.geowave.core.store.query.aggregate.Aggregation;
+import mil.nga.giat.geowave.core.store.query.aggregate.CommonIndexAggregation;
 import mil.nga.giat.geowave.datastore.hbase.operations.BasicHBaseOperations;
 
 public class HBaseConstraintsQuery extends
@@ -140,7 +142,14 @@ public class HBaseConstraintsQuery extends
 				while (it.hasNext()) {
 					final Object input = it.next();
 					if (input != null) {
-						aggregationFunction.aggregate(input);
+						if (aggregationFunction instanceof CommonIndexAggregation) {
+							// should probably fix this, ideally the results
+							// would be CommonIndexedPersistenceEncoding
+							aggregationFunction.aggregate(null);
+						}
+						else {
+							aggregationFunction.aggregate(input);
+						}
 					}
 				}
 				try {
