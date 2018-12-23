@@ -3,9 +3,9 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<artifactId>geowave-core-parent</artifactId>
-		<groupId>mil.nga.giat</groupId>
+		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../</relativePath>
-		<version>0.9.3-SNAPSHOT</version>
+		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-core-ingest</artifactId>
 	<name>GeoWave Ingest Framework</name>
@@ -43,22 +43,22 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-core-cli</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-core-store</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-core-index</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-core-mapreduce</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -72,10 +72,6 @@
 					<artifactId>zookeeper</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>log4j</groupId>
-					<artifactId>log4j</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>com.sun.jdmk</groupId>
 					<artifactId>jmxtools</artifactId>
 				</exclusion>
@@ -84,6 +80,27 @@
 					<artifactId>jmxri</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.github.jsr203hadoop</groupId>
+			<artifactId>jsr203hadoop</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<dependency> <!-- Spark dependency -->
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-core_2.11</artifactId>
+			<version>${spark.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-sql_2.11</artifactId>
+			<version>${spark.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.findify</groupId>
+			<artifactId>s3mock_2.11</artifactId>
+			<version>0.2.5</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 	<build>

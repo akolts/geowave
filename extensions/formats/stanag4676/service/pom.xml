@@ -2,22 +2,19 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<artifactId>geowave-extension-parent</artifactId>
-		<groupId>mil.nga.giat</groupId>
+		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../../../</relativePath>
-		<version>0.9.3-SNAPSHOT</version>
+		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-service-4676</artifactId>
+	<name>STANAG4676 Imagery Services</name>
+	<description>GeoWave service support for image chips and video clips from STANAG4676 which can be embedded in WMS getFeatureInfo responses</description>
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>mil.nga.giat</groupId>
-			<artifactId>geowave-service-api</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.containers</groupId>
 			<artifactId>jersey-container-servlet</artifactId>
@@ -28,24 +25,18 @@
 			<version>0.1.9</version>
 		</dependency>
 		<dependency>
-		    <groupId>org.jcodec</groupId>
-		    <artifactId>jcodec</artifactId>
-		  	<version>0.1.9</version>
+			<groupId>org.jcodec</groupId>
+			<artifactId>jcodec</artifactId>
+			<version>0.1.9</version>
 		</dependency>
- 		<dependency>
+		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
-			<version>3.0.1</version>
+			<version>3.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-format-4676</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
@@ -96,14 +87,10 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>mil.nga.giat</groupId>
+			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-datastore-accumulo</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
-				<exclusion>
-					<artifactId>javax.servlet</artifactId>
-					<groupId />
-				</exclusion>
 				<exclusion>
 					<artifactId>servlet-api</artifactId>
 					<groupId>org.mortbay.jetty</groupId>
@@ -151,13 +138,6 @@
 			</exclusions>
 		</dependency>
 	</dependencies>
-	<repositories>
-		<repository>
-			<id>xuggle repo</id>
-			<url>http://xuggle.googlecode.com/svn/trunk/repo/share/java/</url>
-		</repository>
-	
-	</repositories>
 	<build>
 		<plugins>
 			<plugin>

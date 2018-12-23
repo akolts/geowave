@@ -10,3 +10,7 @@ dependency-reduced-pom.xml
 .idea/
 .DS_Store
 bin
+docker-root
+generated
+.metadata
+

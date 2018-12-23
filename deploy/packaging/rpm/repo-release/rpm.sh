@@ -1,10 +1,20 @@
+#-------------------------------------------------------------------------------
+# Copyright (c) 2013-2017 Contributors to the Eclipse Foundation
+# 
+# See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.
+# All rights reserved. This program and the accompanying materials
+# are made available under the terms of the Apache License,
+# Version 2.0 which accompanies this distribution and is available at
+# http://www.apache.org/licenses/LICENSE-2.0.txt
+#-------------------------------------------------------------------------------
 #!/bin/bash
 #
 # RPM build script
 #
 
 # Source all our reusable functionality, argument is the location of this script.
-. ../admin-scripts/rpm-functions.sh "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. ../rpm-functions.sh "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 declare -A ARGS
 while [ $# -gt 0 ]; do
@@ -22,6 +32,5 @@ case ${ARGS[command]} in
             --define "_topdir $(pwd)" \
             $(buildArg "${ARGS[buildarg]}") SPECS/*.spec ;;
     clean) clean ;;
-   update) echo "Nothing to update" ;;
         *) about ;;
 esac

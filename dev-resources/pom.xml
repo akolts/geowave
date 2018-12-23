@@ -3,12 +3,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>geowave-dev-resources</artifactId>
-    <groupId>mil.nga.giat</groupId>
-    <version>1.1</version>
+    <groupId>org.locationtech.geowave</groupId>
+    <version>1.2</version>
     <name>GeoWave Development Resources</name>
     <packaging>jar</packaging>
     <description>Development resources and settings for geowave</description>
-    <url>https://github.com/ngageoint/geowave</url>
+    <url>https://github.com/locationtech/geowave</url>
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
@@ -28,8 +28,8 @@
         </snapshotRepository>
     </distributionManagement>
     <scm>
-        <url>https://github.com/ngageoint/geowave.git</url>
-        <connection>scm:git:git@github.com:ngageoint/geowave.git</connection>
+        <url>https://github.com/locationtech/geowave.git</url>
+        <connection>scm:git:git@github.com:locationtech/geowave.git</connection>
     </scm>
     <build>
         <extensions>

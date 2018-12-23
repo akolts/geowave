@@ -2,19 +2,25 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<artifactId>geowave-parent</artifactId>
-		<groupId>mil.nga.giat</groupId>
+		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../</relativePath>
-		<version>0.9.3-SNAPSHOT</version>
+		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-extension-parent</artifactId>
 	<name>GeoWave Extensions</name>
 	<description>The set of extended capabilities supported for GeoWave</description>	
 	<packaging>pom</packaging>
 	<modules>
+		<module>adapters/auth</module>
 		<module>adapters/raster</module>
 		<module>adapters/vector</module>
 		<module>datastores/accumulo</module>
 		<module>datastores/hbase</module>
+		<module>datastores/bigtable</module>
+		<module>datastores/cassandra</module>
+		<module>datastores/dynamodb</module>
+		<module>datastores/redis</module>
+		<module>datastores/rocksdb</module>
 		<module>formats/geolife</module>
 		<module>formats/geotools-raster</module>
 		<module>formats/geotools-vector</module>
@@ -22,11 +28,13 @@
 		<module>formats/tdrive</module>
 		<module>formats/gdelt</module>
 		<module>formats/avro</module>
+		<module>formats/twitter</module>
 		<module>formats/stanag4676/format</module>
 		<module>formats/stanag4676/service</module>
 		<module>cli/debug</module>
 		<module>cli/geoserver</module>
 		<module>cli/osm</module>
 		<module>cli/landsat8</module>
+		<module>cli/sentinel2</module>
 	</modules>
 </project>
