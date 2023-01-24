@@ -1,140 +1,163 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
- *   
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
+ *
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.datastore.accumulo.util;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
+import org.apache.accumulo.core.client.ClientConfiguration;
 import org.apache.accumulo.core.client.Connector;
-import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.ZooKeeperInstance;
+import org.apache.accumulo.core.client.security.tokens.KerberosToken;
+import org.apache.accumulo.core.client.security.tokens.PasswordToken;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ConnectorPool
-{
-	private static ConnectorPool singletonInstance;
+public class ConnectorPool {
+  public static interface ConnectorCloseListener {
+    void notifyConnectorClosed();
+  }
 
-	public static synchronized ConnectorPool getInstance() {
-		if (singletonInstance == null) {
-			singletonInstance = new ConnectorPool();
-		}
-		return singletonInstance;
-	}
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConnectorPool.class);
+  private static ConnectorPool singletonInstance;
 
-	private final Map<ConnectorConfig, Connector> connectorCache = new HashMap<ConnectorConfig, Connector>();
+  public static synchronized ConnectorPool getInstance() {
+    if (singletonInstance == null) {
+      singletonInstance = new ConnectorPool();
+    }
+    return singletonInstance;
+  }
 
-	public synchronized Connector getConnector(
-			final String zookeeperUrl,
-			final String instanceName,
-			final String userName,
-			final String password )
-			throws AccumuloException,
-			AccumuloSecurityException {
+  private final Map<ConnectorConfig, Pair<Connector, Set<ConnectorCloseListener>>> connectorCache =
+      new HashMap<>();
 
-		final ConnectorConfig config = new ConnectorConfig(
-				zookeeperUrl,
-				instanceName,
-				userName,
-				password);
-		Connector connector = connectorCache.get(config);
-		if (connector == null) {
-			final Instance inst = new ZooKeeperInstance(
-					instanceName,
-					zookeeperUrl);
-			connector = inst.getConnector(
-					userName,
-					password);
-			connectorCache.put(
-					config,
-					connector);
-		}
-		return connector;
-	}
+  public synchronized Connector getConnector(
+      final String zookeeperUrl,
+      final String instanceName,
+      final String userName,
+      final String passwordOrKeyTab,
+      final boolean useSasl,
+      // the close listener is to ensure all references of this connection are notified
+      @Nullable final ConnectorCloseListener closeListener)
+      throws AccumuloException, AccumuloSecurityException, IOException {
 
-	private static class ConnectorConfig
-	{
-		private final String zookeeperUrl;
-		private final String instanceName;
-		private final String userName;
-		private final String password;
+    final ConnectorConfig config =
+        new ConnectorConfig(zookeeperUrl, instanceName, userName, passwordOrKeyTab, useSasl);
+    final Connector connector;
+    final Pair<Connector, Set<ConnectorCloseListener>> value = connectorCache.get(config);
+    if (value == null) {
+      final ClientConfiguration conf =
+          ClientConfiguration.create().withInstance(instanceName).withZkHosts(zookeeperUrl);
 
-		public ConnectorConfig(
-				final String zookeeperUrl,
-				final String instanceName,
-				final String userName,
-				final String password ) {
-			this.zookeeperUrl = zookeeperUrl;
-			this.instanceName = instanceName;
-			this.userName = userName;
-			this.password = password;
-		}
+      if (useSasl) {
+        conf.withSasl(true);
+        final File file = new java.io.File(passwordOrKeyTab);
+        UserGroupInformation.loginUserFromKeytab(userName, file.getAbsolutePath());
 
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = (prime * result) + ((instanceName == null) ? 0 : instanceName.hashCode());
-			result = (prime * result) + ((password == null) ? 0 : password.hashCode());
-			result = (prime * result) + ((userName == null) ? 0 : userName.hashCode());
-			result = (prime * result) + ((zookeeperUrl == null) ? 0 : zookeeperUrl.hashCode());
-			return result;
-		}
+        // using deprecated constructor with replaceCurrentUser=false for accumulo 1.7 compatibility
+        connector =
+            new ZooKeeperInstance(conf).getConnector(userName, new KerberosToken(userName, file));
+        // If on a secured cluster, create a thread to periodically renew Kerberos tgt
+        final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
-		@Override
-		public boolean equals(
-				final Object obj ) {
-			if (this == obj) {
-				return true;
-			}
-			if (obj == null) {
-				return false;
-			}
-			if (getClass() != obj.getClass()) {
-				return false;
-			}
-			final ConnectorConfig other = (ConnectorConfig) obj;
-			if (instanceName == null) {
-				if (other.instanceName != null) {
-					return false;
-				}
-			}
-			else if (!instanceName.equals(other.instanceName)) {
-				return false;
-			}
-			if (password == null) {
-				if (other.password != null) {
-					return false;
-				}
-			}
-			else if (!password.equals(other.password)) {
-				return false;
-			}
-			if (userName == null) {
-				if (other.userName != null) {
-					return false;
-				}
-			}
-			else if (!userName.equals(other.userName)) {
-				return false;
-			}
-			if (zookeeperUrl == null) {
-				if (other.zookeeperUrl != null) {
-					return false;
-				}
-			}
-			else if (!zookeeperUrl.equals(other.zookeeperUrl)) {
-				return false;
-			}
-			return true;
-		}
-	}
+        executor.scheduleAtFixedRate(() -> {
+          try {
+            UserGroupInformation.getLoginUser().checkTGTAndReloginFromKeytab();
+          } catch (final Exception e) {
+            LOGGER.warn("Unable to renew Kerberos TGT", e);
+          }
+        }, 0, 2, TimeUnit.MINUTES);
+
+      } else {
+        connector =
+            new ZooKeeperInstance(conf).getConnector(userName, new PasswordToken(passwordOrKeyTab));
+      }
+      final Set<ConnectorCloseListener> closeListeners = new HashSet<>();
+      if (closeListener != null) {
+        closeListeners.add(closeListener);
+      }
+      connectorCache.put(config, Pair.of(connector, closeListeners));
+    } else {
+      connector = value.getLeft();
+      if (closeListener != null) {
+        value.getRight().add(closeListener);
+      }
+    }
+    return connector;
+  }
+
+  public synchronized void invalidate(final Connector connector) {
+    // first find the key that matches this connector, then remove it
+    ConnectorConfig key = null;
+    for (final Entry<ConnectorConfig, Pair<Connector, Set<ConnectorCloseListener>>> entry : connectorCache.entrySet()) {
+      if (connector.equals(entry.getValue().getKey())) {
+        key = entry.getKey();
+        entry.getValue().getValue().forEach(ConnectorCloseListener::notifyConnectorClosed);
+        break;
+      }
+    }
+    if (key != null) {
+      connectorCache.remove(key);
+    }
+  }
+
+  private static class ConnectorConfig {
+    private final String zookeeperUrl;
+    private final String instanceName;
+    private final String userName;
+    private final String passwordOrKeyTab;
+    private final boolean useSasl;
+
+    public ConnectorConfig(
+        final String zookeeperUrl,
+        final String instanceName,
+        final String userName,
+        final String passwordOrKeyTab,
+        final boolean useSasl) {
+      this.zookeeperUrl = zookeeperUrl;
+      this.instanceName = instanceName;
+      this.userName = userName;
+      this.passwordOrKeyTab = passwordOrKeyTab;
+      this.useSasl = useSasl;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if ((o == null) || (getClass() != o.getClass())) {
+        return false;
+      }
+      final ConnectorConfig that = (ConnectorConfig) o;
+      return (useSasl == that.useSasl)
+          && zookeeperUrl.equals(that.zookeeperUrl)
+          && instanceName.equals(that.instanceName)
+          && userName.equals(that.userName)
+          && Objects.equals(passwordOrKeyTab, that.passwordOrKeyTab);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(zookeeperUrl, instanceName, userName, passwordOrKeyTab, useSasl);
+    }
+  }
 }

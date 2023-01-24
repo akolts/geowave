@@ -1,0 +1,58 @@
+<<<
+
+== Store Commands
+
+Commands for managing GeoWave data stores.
+
+[[store-add]]
+=== Add Store
+
+include::manpages/store/geowave-addstore.txt[]
+
+[[store-describe]]
+=== Describe Store
+
+include::manpages/store/geowave-describestore.txt[]
+
+[[store-clear]]
+=== Clear Store
+
+include::manpages/store/geowave-clear.txt[]
+
+[[store-copy]]
+=== Copy Store
+
+include::manpages/store/geowave-copy.txt[]
+
+[[store-copymr]]
+=== Copy Store with MapReduce
+
+include::manpages/store/geowave-copymr.txt[]
+
+[[store-copystorecfg]]
+=== Copy Store Configuration
+
+include::manpages/store/geowave-copystorecfg.txt[]
+
+[[store-list]]
+=== List Stores
+
+include::manpages/store/geowave-liststores.txt[]
+
+[[store-rm]]
+=== Remove Store
+
+include::manpages/store/geowave-rmstore.txt[]
+
+[[store-version]]
+=== Store Version
+
+include::manpages/store/geowave-version.txt[]
+
+[[store-listplugins]]
+=== List Store Plugins
+
+include::manpages/store/geowave-liststoreplugins.txt[]
+
+'''
+

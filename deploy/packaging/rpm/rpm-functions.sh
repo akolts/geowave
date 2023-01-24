@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2013-2017 Contributors to the Eclipse Foundation
+# Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
 # 
 # See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.
@@ -70,6 +70,7 @@ buildArg() {
 parsePriorityFromVersion() {
     # Drop trailing bug fix or pre-release labels (0.8.8-alpha2 or 0.8.8-1)
     VERSION=${1%-*}
+    VERSION=${VERSION%~*}
 
     # Truncate the version string after the first three groups delimited by dots
     VERSION=$(echo $VERSION | cut -d '.' -f1-3)

@@ -1,0 +1,23 @@
+<<<
+
+== Vector Commands
+
+Commands that operate on vector data.
+
+[[vector-cqldelete]]
+=== CQL Delete
+
+include::manpages/vector/geowave-cqldelete.txt[]
+
+[[vector-localexport]]
+=== Local Export
+
+include::manpages/vector/geowave-localexport.txt[]
+
+[[vector-mrexport]]
+=== MapReduce Export
+
+include::manpages/vector/geowave-mrexport.txt[]
+
+'''
+

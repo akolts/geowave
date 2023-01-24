@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
+# Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
 # 
 # See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.
@@ -24,17 +24,17 @@ cd $STAGING_DIR
 geowave config set geowave.encryption.enabled=false
 
 # Ingest the data. Indexed spatial only in this example. It can also be indexed using spatial-temporal
-geowave config addstore gdelt --gwNamespace geowave.gdelt \
+geowave store add gdelt --gwNamespace geowave.gdelt \
 $DATASTORE_PARAMS_TOKEN
 
-geowave config addindex -t spatial gdelt-spatial --partitionStrategy round_robin --numPartitions $NUM_PARTITIONS
+geowave index add gdelt gdelt-spatial -t spatial --partitionStrategy round_robin --numPartitions $NUM_PARTITIONS
 geowave ingest localtogw $STAGING_DIR/gdelt gdelt gdelt-spatial -f gdelt --gdelt.cql "BBOX(geometry,${WEST},${SOUTH},${EAST},${NORTH})"
-geowave config addstore gdelt-kde --gwNamespace geowave.kde_gdelt \
+geowave store add gdelt-kde --gwNamespace geowave.kde_gdelt \
 $DATASTORE_PARAMS_TOKEN
 
 
 # Run a kde to produce a heatmap
-hadoop jar ${GEOWAVE_TOOLS_JAR} analytic kde --featureType gdeltevent --minLevel 5 --maxLevel 26 --minSplits $NUM_PARTITIONS --maxSplits $NUM_PARTITIONS --coverageName gdeltevent_kde --hdfsHostPort ${HOSTNAME}:${HDFS_PORT} --jobSubmissionHostPort ${HOSTNAME}:${RESOURCE_MAN_PORT} --tileSize 1 gdelt gdelt-kde
+geowave analytic kde --featureType gdeltevent --minLevel 5 --maxLevel 26 --minSplits $NUM_PARTITIONS --maxSplits $NUM_PARTITIONS --coverageName gdeltevent_kde --hdfsHostPort ${HOSTNAME}:${HDFS_PORT} --jobSubmissionHostPort ${HOSTNAME}:${RESOURCE_MAN_PORT} --tileSize 1 gdelt gdelt-kde
 
 # Run the geoserver workspace setup script
 cd $STAGING_DIR

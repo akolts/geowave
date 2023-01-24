@@ -1,0 +1,35 @@
+option java_package = "org.locationtech.geowave.datastore.hbase.coprocessors.protobuf";
+option java_outer_classname = "AggregationProtos";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+option optimize_for = SPEED;
+
+message AggregationType {
+  required bytes classId = 1;
+  optional bytes params = 2;
+}
+
+message AggregationRequest {
+  required AggregationType aggregation = 1;
+  optional bytes rangeFilter = 2;
+  optional bytes filter = 3;
+  optional bytes model = 4;
+  optional bytes visLabels = 5;
+  optional bytes adapter = 6;
+  optional bytes internalAdapterId = 7;
+  optional bytes numericIndexStrategyFilter = 8;
+  optional bool blockCaching = 9;
+  optional int32 cacheSize = 10;
+  optional bool wholeRowFilter = 11;
+  optional int32 partitionKeyLength = 12;
+  optional bytes indexMapping = 13;
+}
+
+message AggregationResponse {
+  required bytes value = 1;
+}
+
+service AggregationService {
+  rpc aggregate(AggregationRequest)
+    returns (AggregationResponse);
+}

@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
+# Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
 # 
 # See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.
@@ -14,7 +14,9 @@
 #
 # Source all our reusable functionality, argument is the location of this script.
 trap 'chmod -R 777 $WORKSPACE && exit' ERR
-
+echo "INSTALL4J_HOME=${INSTALL4J_HOME}"
+echo "GEOWAVE_BUCKET=${GEOWAVE_BUCKET}"
+echo "GEOWAVE_RPM_BUCKET=${GEOWAVE_RPM_BUCKET}"
 echo '###### Build Variables'
 declare -A ARGS
 while [ $# -gt 0 ]; do
@@ -28,11 +30,11 @@ BUILD_ARGS_MATRIX=${ARGS[buildargsmatrix]}
 DOCKER_ARGS=${ARGS[dockerargs]}
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TIME_TAG=$(date +"%Y%m%d%H%M")
-SKIP_EXTRA="-Dfindbugs.skip -Dformatter.skip -DskipTests"
+SKIP_EXTRA="-Dspotbugs.skip -Dformatter.skip -DskipTests"
 cd "$SCRIPT_DIR/../../.."
 WORKSPACE="$(pwd)"
 DOCKER_ROOT=$WORKSPACE/docker-root
-LOCAL_REPO_DIR="${LOCAL_REPO_DIR:-/var/www/geowave-efs/html/repos/snapshots}"
+LOCAL_REPO_DIR="${LOCAL_REPO_DIR:-/jenkins/gw-repo/snapshots}"
 LOCK_DIR=/var/lock/subsys
 
 # If you'd like to build a different set of artifacts rename build-args-matrix.sh.example
@@ -44,7 +46,6 @@ if [ -z $BUILD_ARGS_MATRIX  ]; then
     	BUILD_ARGS_MATRIX=(
 	"-Dvendor.version=apache"
 	"-P cloudera -Dvendor.version=cdh5"
-	"-P hortonworks -Dvendor.version=hdp2"
     	)
 	fi
 fi
@@ -55,21 +56,47 @@ if [[ ! -d $DOCKER_ROOT ]]; then
   mkdir $DOCKER_ROOT
 fi
 
+if [ -z ${INSTALL4J_HOME} ]; then
+    echo "Setting INSTALL4J_HOME=/opt/install4j7"
+    INSTALL4J_HOME=/opt/install4j7
+fi
+
+if [ -z ${GEOWAVE_RPM_BUCKET} ]; then
+    echo "Setting GEOWAVE_RPM_BUCKET=geowave-rpms"
+    GEOWAVE_RPM_BUCKET=geowave-rpms
+fi
+
+if [ -z ${GEOWAVE_BUCKET} ]; then
+    echo "Setting GEOWAVE_BUCKET=geowave"
+    GEOWAVE_BUCKET=geowave
+fi
+
+if [ -f ~/.install4j ]; then
+   cp ~/.install4j $DOCKER_ROOT/
+fi
+
+if [ -d ~/.install4j7 ]; then
+   cp -R ~/.install4j7 $DOCKER_ROOT/
+fi
+
 $WORKSPACE/deploy/packaging/rpm/centos/7/rpm.sh --command clean
 
 docker run $DOCKER_ARGS --rm \
   -e WORKSPACE=/usr/src/geowave \
   -e MAVEN_OPTS="-Xmx1500m" \
+  -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
   -v $DOCKER_ROOT:/root \
   -v $WORKSPACE:/usr/src/geowave \
+  -v $INSTALL4J_HOME:/opt/install4j7 \
   locationtech/geowave-centos7-java8-build \
   /bin/bash -c \
-  "cd \$WORKSPACE && deploy/packaging/docker/build-src/build-geowave-common.sh $SKIP_EXTRA"
+  "cd \$WORKSPACE && deploy/packaging/docker/init.sh && deploy/packaging/docker/build-src/build-geowave-common.sh $SKIP_EXTRA"
 	
 docker run $DOCKER_ARGS --rm \
   -e WORKSPACE=/usr/src/geowave \
   -e BUILD_SUFFIX="common" \
   -e TIME_TAG="$TIME_TAG" \
+  -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
   -v $DOCKER_ROOT:/root \
   -v $WORKSPACE:/usr/src/geowave \
   locationtech/geowave-centos7-rpm-build \
@@ -81,6 +108,8 @@ docker run $DOCKER_ARGS --rm \
   -e LOCAL_REPO_DIR=/usr/src/repo \
   -e LOCK_DIR=/usr/src/lock \
   -e TIME_TAG="$TIME_TAG" \
+  -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
+  -e GEOWAVE_RPM_BUCKET="$GEOWAVE_RPM_BUCKET" \
   -v $DOCKER_ROOT:/root \
   -v $WORKSPACE:/usr/src/geowave \
   -v $LOCAL_REPO_DIR:/usr/src/repo \
@@ -94,21 +123,24 @@ do
     export BUILD_ARGS="$build_args"
     
     $WORKSPACE/deploy/packaging/rpm/centos/7/rpm.sh --command clean
+
     docker run --rm $DOCKER_ARGS \
       -e WORKSPACE=/usr/src/geowave \
       -e BUILD_ARGS="$build_args" \
       -e MAVEN_OPTS="-Xmx1500m" \
+      -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
       -v $DOCKER_ROOT:/root \
       -v $WORKSPACE:/usr/src/geowave \
       locationtech/geowave-centos7-java8-build \
       /bin/bash -c \
-      "cd \$WORKSPACE && deploy/packaging/docker/build-src/build-geowave-vendor.sh $SKIP_EXTRA"
+      "cd \$WORKSPACE && deploy/packaging/docker/init.sh && deploy/packaging/docker/build-src/build-geowave-vendor.sh $SKIP_EXTRA"
 
     docker run --rm $DOCKER_ARGS \
       -e WORKSPACE=/usr/src/geowave \
       -e BUILD_ARGS="$build_args" \
       -e BUILD_SUFFIX="vendor" \
       -e TIME_TAG="$TIME_TAG" \
+      -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
       -v $DOCKER_ROOT:/root \
       -v $WORKSPACE:/usr/src/geowave \
       -v $LOCAL_REPO_DIR:/usr/src/repo \
@@ -120,6 +152,7 @@ do
       -e WORKSPACE=/usr/src/geowave \
       -e BUILD_ARGS="$build_args" \
       -e TIME_TAG="$TIME_TAG" \
+      -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
       -v $WORKSPACE:/usr/src/geowave \
       locationtech/geowave-centos7-rpm-build \
       /bin/bash -c \
@@ -131,6 +164,7 @@ do
       -e LOCAL_REPO_DIR=/usr/src/repo \
       -e LOCK_DIR=/usr/src/lock \
       -e TIME_TAG="$TIME_TAG" \
+      -e GEOWAVE_BUCKET="$GEOWAVE_BUCKET" \
       -v $DOCKER_ROOT:/root \
       -v $WORKSPACE:/usr/src/geowave \
       -v $LOCAL_REPO_DIR:/usr/src/repo \

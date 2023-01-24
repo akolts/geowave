@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2013-2017 Contributors to the Eclipse Foundation
+# Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
 # 
 # See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.
@@ -40,7 +40,7 @@ if [ -n "${HADOOP_HOME}" ] && [ -d "${HADOOP_HOME}" ]; then
      HADOOP_CLASSPATH=""
      for i in $(echo $CLASSPATH | sed "s/:/ /g")
      do
-       if [[ "$i" != *slf4j-log4j*.jar ]]; then
+       if [[ "$i" != *log4j-slf4j-impl*.jar && "$i" != *slf4j-log4j*.jar && "$i" != *protobuf-java*.jar ]]; then
          HADOOP_CLASSPATH=${HADOOP_CLASSPATH}:$i
        fi
      done
@@ -67,9 +67,9 @@ fi
 if [ -n "${SPARK_HOME}" ] && [ -d "${SPARK_HOME}" ]; then
   . "${SPARK_HOME}"/bin/load-spark-env.sh
   SPARK_CLASSPATH=""
-  for i in $(ls ${SPARK_HOME}/jars/* )
+  for i in ${SPARK_HOME}/jars/*.jar
   do
-     if [[ "$i" != *slf4j-log4j*.jar ]]; then
+     if [[ "$i" != *log4j-slf4j-impl*.jar && "$i" != *guava*.jar && "$i" != *slf4j-log4j*.jar && "$i" != *protobuf-java*.jar ]]; then
        SPARK_CLASSPATH=${SPARK_CLASSPATH}:$i
      fi
   done  
@@ -81,7 +81,7 @@ else
 fi
 
 # Define log4j properties file in jar call, to reduce log spam.
-LOG_PROPERTIES="-Djava.util.logging.config.file=jul-geowave-cli.properties"
+LOG_PROPERTIES="-Djava.util.logging.config.file=jul-geowave-cli.properties -Dgeowave.home=$GEOWAVE_TOOLS_HOME"
 
 # Using -cp and the classname instead of -jar because Java 7 and below fail to auto-launch jars with more than 65k files
 exec $JAVA $GEOWAVE_TOOL_JAVA_OPT $LOG_PROPERTIES -cp $CLASSPATH org.locationtech.geowave.core.cli.GeoWaveMain "$@"

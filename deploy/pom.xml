@@ -4,7 +4,7 @@
 		<artifactId>geowave-parent</artifactId>
 		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../</relativePath>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>2.0.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-deploy</artifactId>
 	<name>GeoWave Deployment Configurations</name>
@@ -39,21 +39,11 @@
 				<includes>
 					<include>build.properties</include>
 					<include>GeoWaveLabels.properties</include>
-					<include>log4j.properties</include>
+					<include>log4j2.properties</include>
 				</includes>
 			</resource>
 		</resources>
 		<plugins>
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.2.1</version>
-				<configuration>
-					<descriptors>
-						<descriptor>src/main/assembly/assembly${container.extension}.xml</descriptor>
-					</descriptors>
-					<finalName>${project.build.finalName}${container.extension}</finalName>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
@@ -129,9 +119,17 @@
 				</dependency>
 				<dependency>
 					<groupId>org.locationtech.geowave</groupId>
-					<artifactId>geowave-cli-osm</artifactId>
+					<artifactId>geowave-datastore-filesystem</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				<dependency>
+					<groupId>org.locationtech.geowave</groupId>
+					<artifactId>geowave-datastore-kudu</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				<!-- don't include OSM tools until they're giving some updates -->
+				<!-- <dependency> <groupId>org.locationtech.geowave</groupId> <artifactId>geowave-cli-osm</artifactId> 
+					<version>${project.version}</version> </dependency> -->
 				<dependency>
 					<groupId>org.locationtech.geowave</groupId>
 					<artifactId>geowave-cli-geoserver</artifactId>
@@ -195,6 +193,16 @@
 				<dependency>
 					<groupId>org.locationtech.geowave</groupId>
 					<artifactId>geowave-grpc-server</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>org.locationtech.geowave</groupId>
+					<artifactId>geowave-python</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>org.locationtech.geowave</groupId>
+					<artifactId>geowave-migration</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
@@ -270,6 +278,73 @@
 			</build>
 		</profile>
 		<profile>
+			<id>build-installer-main</id>
+			<properties>
+				<!-- standalone installer seems to work better at least on windows with 
+					hadoop2 (more compatible with local FS), hbase shaded client is packaged 
+					with 2.10.0, which is what the ITs end up finding first -->
+				<hadoop.version>2.10.0</hadoop.version>
+			</properties>
+			<dependencies>
+				<dependency>
+					<groupId>org.locationtech.geowave</groupId>
+					<artifactId>geowave-analytic-api</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>3.1.1</version>
+						<configuration>
+							<finalName>installer-main</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+							<descriptorRefs>
+								<descriptorRef>default-installer-main</descriptorRef>
+							</descriptorRefs>
+						</configuration>
+						<executions>
+							<execution>
+								<id>make-assembly</id> <!-- this is used for inheritance merges -->
+								<phase>package</phase> <!-- bind to the packaging phase -->
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+						<dependencies>
+							<dependency>
+								<groupId>org.locationtech.geowave</groupId>
+								<artifactId>geowave-dev-resources</artifactId>
+								<version>${geowave-dev-resources.version}</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+					<plugin>
+						<groupId>org.sonatype.install4j</groupId>
+						<artifactId>install4j-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>compile-installers</id>
+								<phase>package</phase>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+								<configuration>
+									<release>${project.version}</release>
+									<destination>${project.build.directory}/install4j-output</destination>
+									<projectFile>${project.basedir}/packaging/standalone/standalone-installer.install4j</projectFile>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>geotools-container-singlejar</id>
 			<properties>
 				<geotools.scope>provided</geotools.scope>
@@ -312,6 +387,11 @@
 					<version>${project.version}</version>
 				</dependency>
 				<dependency>
+					<groupId>org.locationtech.geowave</groupId>
+					<artifactId>geowave-datastore-filesystem</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				<dependency>
 					<!-- This is required in case ImageDataAdapter is needed in the classpath -->
 					<groupId>org.locationtech.geowave</groupId>
 					<artifactId>geowave-format-4676</artifactId>
@@ -350,18 +430,16 @@
 												<exclude>org.apache.commons:commons-lang3</exclude> -->
 											<exclude>tomcat:*</exclude>
 											<exclude>javax.media:jai*:*</exclude>
+											<exclude>com.sun.jersey:*</exclude>
 											<exclude>*:servlet*:*</exclude>
 											<exclude>*:javax.servlet*:*</exclude>
 											<exclude>*:jsp*:*</exclude>
 											<exclude>*:jetty*:*</exclude>
 											<exclude>*:commons-httpclient:*</exclude>
 											<exclude>*:maven*:*</exclude>
-											<exclude>*:httpclient:*</exclude>
-											<exclude>*:httpcore:*</exclude>
 											<exclude>*:commons-logging:*</exclude>
 											<exclude>*:commons-io:*</exclude>
 											<exclude>*:jts*:*</exclude>
-											<exclude>*:stax*:*</exclude>
 											<exclude>*:activation:*</exclude>
 											<exclude>*:servlet-api:*</exclude>
 											<exclude>*:*:jsr305</exclude>
@@ -508,11 +586,12 @@
 			<properties>
 				<hbase.scope>provided</hbase.scope>
 				<container.extension>-hbase-container</container.extension>
+				<guava.version>12.0.1</guava.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.locationtech.geowave</groupId>
-					<artifactId>geowave-datastore-hbase</artifactId>
+					<artifactId>geowave-datastore-hbase-coprocessors</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
@@ -533,6 +612,7 @@
 										<excludes>
 											<exclude>org.slf4j:*</exclude>
 											<exclude>com.google.protobuf:*</exclude>
+											<exclude>org.apache.hadoop:*</exclude>
 										</excludes>
 									</artifactSet>
 									<filters>

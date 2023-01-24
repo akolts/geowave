@@ -13,4 +13,5 @@ bin
 docker-root
 generated
 .metadata
-
+**/.factorypath
+.vscode

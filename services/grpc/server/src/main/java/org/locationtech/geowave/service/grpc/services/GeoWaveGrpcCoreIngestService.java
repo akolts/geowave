@@ -1,328 +1,270 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
- *   
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
+ *
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.service.grpc.services;
 
 import java.io.File;
-import java.util.List;
 import java.util.Map;
-
 import org.locationtech.geowave.core.cli.api.OperationParams;
 import org.locationtech.geowave.core.cli.operations.config.options.ConfigOptions;
 import org.locationtech.geowave.core.cli.parser.ManualOperationParams;
-import org.locationtech.geowave.core.ingest.operations.KafkaToGeowaveCommand;
-import org.locationtech.geowave.core.ingest.operations.ListPluginsCommand;
-import org.locationtech.geowave.core.ingest.operations.LocalToGeowaveCommand;
+import org.locationtech.geowave.core.ingest.operations.KafkaToGeoWaveCommand;
+import org.locationtech.geowave.core.ingest.operations.ListIngestPluginsCommand;
+import org.locationtech.geowave.core.ingest.operations.LocalToGeoWaveCommand;
 import org.locationtech.geowave.core.ingest.operations.LocalToHdfsCommand;
 import org.locationtech.geowave.core.ingest.operations.LocalToKafkaCommand;
-import org.locationtech.geowave.core.ingest.operations.LocalToMapReduceToGeowaveCommand;
-import org.locationtech.geowave.core.ingest.operations.MapReduceToGeowaveCommand;
-import org.locationtech.geowave.core.ingest.operations.SparkToGeowaveCommand;
+import org.locationtech.geowave.core.ingest.operations.LocalToMapReduceToGeoWaveCommand;
+import org.locationtech.geowave.core.ingest.operations.MapReduceToGeoWaveCommand;
+import org.locationtech.geowave.core.ingest.operations.SparkToGeoWaveCommand;
 import org.locationtech.geowave.service.grpc.GeoWaveGrpcServiceOptions;
 import org.locationtech.geowave.service.grpc.GeoWaveGrpcServiceSpi;
 import org.locationtech.geowave.service.grpc.protobuf.CoreIngestGrpc.CoreIngestImplBase;
-import org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.RepeatedStringResponse;
-import org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.StringResponse;
-import org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse;
+import org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.StringResponseProtos;
+import org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import com.google.protobuf.Descriptors.FieldDescriptor;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
-import com.google.protobuf.Descriptors.FieldDescriptor;
 
-public class GeoWaveGrpcCoreIngestService extends
-		CoreIngestImplBase implements
-		GeoWaveGrpcServiceSpi
-{
+public class GeoWaveGrpcCoreIngestService extends CoreIngestImplBase implements
+    GeoWaveGrpcServiceSpi {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(GeoWaveGrpcCoreIngestService.class.getName());
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(GeoWaveGrpcCoreIngestService.class.getName());
 
-	@Override
-	public BindableService getBindableService() {
-		return (BindableService) this;
-	}
+  @Override
+  public BindableService getBindableService() {
+    return this;
+  }
 
-	@Override
-	public void localToHdfsCommand(
-			org.locationtech.geowave.service.grpc.protobuf.LocalToHdfsCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
+  @Override
+  public void localToHdfsCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.LocalToHdfsCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
 
-		LocalToHdfsCommand cmd = new LocalToHdfsCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    final LocalToHdfsCommand cmd = new LocalToHdfsCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		cmd.prepare(params);
+    cmd.prepare(params);
 
-		LOGGER.info("Executing LocalToHdfsCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+    LOGGER.info("Executing LocalToHdfsCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-	}
+  @Override
+  public void sparkToGeoWaveCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.SparkToGeoWaveCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
+    final SparkToGeoWaveCommand cmd = new SparkToGeoWaveCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-	@Override
-	public void sparkToGeowaveCommand(
-			org.locationtech.geowave.service.grpc.protobuf.SparkToGeowaveCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
-		SparkToGeowaveCommand cmd = new SparkToGeowaveCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    if (!cmd.prepare(params)) {
+      LOGGER.error("Failed to prepare parameters for SparkToGeowaveCommand");
+    }
 
-		if (!cmd.prepare(params)) {
-			LOGGER.error("Failed to prepare parameters for SparkToGeowaveCommand");
-		}
+    LOGGER.info("Executing SparkToGeowaveCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		LOGGER.info("Executing SparkToGeowaveCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
+  @Override
+  public void kafkaToGeoWaveCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.KafkaToGeoWaveCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
 
-	@Override
-	public void kafkaToGeowaveCommand(
-			org.locationtech.geowave.service.grpc.protobuf.KafkaToGeowaveCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
+    final KafkaToGeoWaveCommand cmd = new KafkaToGeoWaveCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-		KafkaToGeowaveCommand cmd = new KafkaToGeowaveCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    cmd.prepare(params);
 
-		cmd.prepare(params);
+    LOGGER.info("Executing KafkaToGeowaveCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		LOGGER.info("Executing KafkaToGeowaveCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
+  @Override
+  public void listIngestPluginsCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.ListIngestPluginsCommandParametersProtos request,
+      final io.grpc.stub.StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.StringResponseProtos> responseObserver) {
 
-	}
+    final ListIngestPluginsCommand cmd = new ListIngestPluginsCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-	@Override
-	public void listPluginsCommand(
-			org.locationtech.geowave.service.grpc.protobuf.ListPluginsCommandParameters request,
-			io.grpc.stub.StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.StringResponse> responseObserver ) {
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		ListPluginsCommand cmd = new ListPluginsCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    cmd.prepare(params);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    LOGGER.info("Executing ListPluginsCommand...");
+    try {
+      final String result = cmd.computeResults(params);
+      final StringResponseProtos resp =
+          StringResponseProtos.newBuilder().setResponseValue(result).build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		cmd.prepare(params);
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		LOGGER.info("Executing ListPluginsCommand...");
-		try {
-			String result = cmd.computeResults(params);
-			final StringResponse resp = StringResponse.newBuilder().setResponseValue(
-					result).build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+  @Override
+  public void localToKafkaCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.LocalToKafkaCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
+    final LocalToKafkaCommand cmd = new LocalToKafkaCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-	@Override
-	public void localToKafkaCommand(
-			org.locationtech.geowave.service.grpc.protobuf.LocalToKafkaCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		LocalToKafkaCommand cmd = new LocalToKafkaCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    cmd.prepare(params);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    LOGGER.info("Executing LocalToKafkaCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		cmd.prepare(params);
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		LOGGER.info("Executing LocalToKafkaCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+  @Override
+  public void localToMapReduceToGeoWaveCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.LocalToMapReduceToGeoWaveCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
+    final LocalToMapReduceToGeoWaveCommand cmd = new LocalToMapReduceToGeoWaveCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-	@Override
-	public void localToMapReduceToGeowaveCommand(
-			org.locationtech.geowave.service.grpc.protobuf.LocalToMapReduceToGeowaveCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
-		LocalToMapReduceToGeowaveCommand cmd = new LocalToMapReduceToGeowaveCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    cmd.prepare(params);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    LOGGER.info("Executing LocalToMapReduceToGeowaveCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		cmd.prepare(params);
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		LOGGER.info("Executing LocalToMapReduceToGeowaveCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+  @Override
+  public void localToGeoWaveCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.LocalToGeoWaveCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
+    final LocalToGeoWaveCommand cmd = new LocalToGeoWaveCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-	@Override
-	public void localToGeowaveCommand(
-			org.locationtech.geowave.service.grpc.protobuf.LocalToGeowaveCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		LocalToGeowaveCommand cmd = new LocalToGeowaveCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    cmd.prepare(params);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    LOGGER.info("Executing LocalToGeowaveCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		cmd.prepare(params);
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 
-		LOGGER.info("Executing LocalToGeowaveCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
+  @Override
+  public void mapReduceToGeoWaveCommand(
+      final org.locationtech.geowave.service.grpc.protobuf.MapReduceToGeoWaveCommandParametersProtos request,
+      final StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypesProtos.VoidResponseProtos> responseObserver) {
 
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
+    final MapReduceToGeoWaveCommand cmd = new MapReduceToGeoWaveCommand();
+    final Map<FieldDescriptor, Object> m = request.getAllFields();
+    GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(m, cmd);
 
-	@Override
-	public void mapReduceToGeowaveCommand(
-			org.locationtech.geowave.service.grpc.protobuf.MapReduceToGeowaveCommandParameters request,
-			StreamObserver<org.locationtech.geowave.service.grpc.protobuf.GeoWaveReturnTypes.VoidResponse> responseObserver ) {
+    final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
+    final OperationParams params = new ManualOperationParams();
+    params.getContext().put(ConfigOptions.PROPERTIES_FILE_CONTEXT, configFile);
 
-		MapReduceToGeowaveCommand cmd = new MapReduceToGeowaveCommand();
-		Map<FieldDescriptor, Object> m = request.getAllFields();
-		GeoWaveGrpcServiceCommandUtil.setGrpcToCommandFields(
-				m,
-				cmd);
+    cmd.prepare(params);
 
-		final File configFile = GeoWaveGrpcServiceOptions.geowaveConfigFile;
-		final OperationParams params = new ManualOperationParams();
-		params.getContext().put(
-				ConfigOptions.PROPERTIES_FILE_CONTEXT,
-				configFile);
+    LOGGER.info("Executing MapReduceToGeowaveCommand...");
+    try {
+      cmd.computeResults(params);
+      final VoidResponseProtos resp = VoidResponseProtos.newBuilder().build();
+      responseObserver.onNext(resp);
+      responseObserver.onCompleted();
 
-		cmd.prepare(params);
-
-		LOGGER.info("Executing MapReduceToGeowaveCommand...");
-		try {
-			cmd.computeResults(params);
-			final VoidResponse resp = VoidResponse.newBuilder().build();
-			responseObserver.onNext(resp);
-			responseObserver.onCompleted();
-
-		}
-		catch (final Exception e) {
-			LOGGER.error(
-					"Exception encountered executing command",
-					e);
-		}
-	}
-
+    } catch (final Exception e) {
+      LOGGER.error("Exception encountered executing command", e);
+      responseObserver.onError(e);
+    }
+  }
 }

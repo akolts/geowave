@@ -4,22 +4,27 @@
 		<artifactId>geowave-extension-parent</artifactId>
 		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../../</relativePath>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>2.0.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-datastore-bigtable</artifactId>
-	<name>GeoWave BigTable</name>
-	<description>Geowave Data Store on Apache BigTable</description>
+	<name>GeoWave Bigtable</name>
+	<description>Geowave Data Store on Google Cloud Bigtable</description>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-shaded-client</artifactId>
+			<scope>provided</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.locationtech.geowave</groupId>
 			<artifactId>geowave-datastore-hbase</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.google.cloud.bigtable</groupId>
-			<artifactId>bigtable-hbase-1.x-shaded</artifactId>
-			<version>${bigtable.version}</version>
+			<artifactId>bigtable-hbase-2.x-shaded</artifactId>
 			<exclusions>
 				<exclusion>
 					<!-- Uses shaded hbase client -->
@@ -28,10 +33,17 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-tcnative-boringssl-static</artifactId>
-			<version>1.1.33.Fork19</version>
-		</dependency>
 	</dependencies>
+	<profiles>
+		<profile>
+			<id>build-installer-plugin</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

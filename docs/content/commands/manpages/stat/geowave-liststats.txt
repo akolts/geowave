@@ -1,0 +1,55 @@
+//:= geowave-stat-list(1)
+:doctype: manpage
+
+[[stat-list-name]]
+==== NAME
+
+geowave-stat-list - Print statistics of a data store to standard output
+
+[[stat-list-synopsis]]
+==== SYNOPSIS
+
+  geowave stat list [options] <store name>
+
+[[stat-list-description]]
+==== DESCRIPTION
+
+This command prints statistics of a GeoWave data store (and optionally of a single type) to the standard output.
+
+[[stat-list-options]]
+==== OPTIONS
+
+*--limit* _<limit>_::
+  Limit the number or rows returned.  By default, all results will be displayed.
+  
+*--csv*::
+  Output statistics in CSV format.
+
+*-t, --type* _<type>_::
+  The type of the statistic.
+
+*--typeName* _<name>_::
+  The name of the data type adapter, for field and type statistics.
+  
+*--indexName* _<name>_::
+  The name of the index, for index statistics.
+  
+*--fieldName* _<name>_::
+  The name of the field, for field statistics.
+  
+*--tag* _<tag>_::
+  The tag of the statistic.
+  
+*--auth* _<authorizations>_::
+  The authorizations used when querying statistics.
+  
+[[stat-list-examples]]
+==== EXAMPLES
+
+List all statistics in the `example` store:
+
+  geowave stat list example
+  
+List all statistics for the `hail` type in the `example` store in CSV format:
+
+  geowave stat list example --csv --typeName hail

@@ -1,220 +1,238 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
  *
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.adapter.vector.plugin;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-
+import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.locationtech.geowave.adapter.vector.index.IndexQueryStrategySPI.QueryHint;
 import org.locationtech.geowave.adapter.vector.plugin.transaction.GeoWaveTransaction;
+import org.locationtech.geowave.adapter.vector.plugin.transaction.StatisticsCache;
 import org.locationtech.geowave.adapter.vector.plugin.transaction.TransactionsAllocator;
-import org.locationtech.geowave.core.geotime.store.GeotoolsFeatureDataAdapter;
+import org.locationtech.geowave.core.geotime.store.InternalGeotoolsFeatureDataAdapter;
+import org.locationtech.geowave.core.geotime.store.dimension.CustomCrsIndexModel;
 import org.locationtech.geowave.core.geotime.store.query.api.VectorQueryBuilder;
-import org.locationtech.geowave.core.index.ByteArray;
+import org.locationtech.geowave.core.geotime.util.GeometryUtils;
+import org.locationtech.geowave.core.geotime.util.SpatialIndexUtils;
 import org.locationtech.geowave.core.index.StringUtils;
+import org.locationtech.geowave.core.store.AdapterToIndexMapping;
 import org.locationtech.geowave.core.store.CloseableIterator;
-import org.locationtech.geowave.core.store.adapter.InitializeWithIndicesDataAdapter;
-import org.locationtech.geowave.core.store.adapter.InternalDataAdapter;
-import org.locationtech.geowave.core.store.adapter.InternalDataAdapterWrapper;
-import org.locationtech.geowave.core.store.adapter.statistics.DataStatisticsStore;
-import org.locationtech.geowave.core.store.adapter.statistics.InternalDataStatistics;
-import org.locationtech.geowave.core.store.adapter.statistics.StatisticsId;
+import org.locationtech.geowave.core.store.adapter.AdapterIndexMappingStore;
 import org.locationtech.geowave.core.store.api.DataStore;
 import org.locationtech.geowave.core.store.api.Index;
+import org.locationtech.geowave.core.store.api.VisibilityHandler;
 import org.locationtech.geowave.core.store.api.Writer;
-import org.locationtech.geowave.core.store.data.VisibilityWriter;
 import org.locationtech.geowave.core.store.data.visibility.GlobalVisibilityHandler;
-import org.locationtech.geowave.core.store.data.visibility.UniformVisibilityWriter;
 import org.locationtech.geowave.core.store.index.IndexStore;
-import org.locationtech.geowave.core.store.query.constraints.BasicQuery;
+import org.locationtech.geowave.core.store.query.constraints.BasicQueryByClass;
+import org.locationtech.geowave.core.store.statistics.DataStatisticsStore;
 import org.opengis.feature.simple.SimpleFeature;
-import org.spark_project.guava.collect.Maps;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import com.google.common.collect.Maps;
 
-public class GeoWaveDataStoreComponents
-{
-	private final GeotoolsFeatureDataAdapter adapter;
-	private final DataStore dataStore;
-	private final IndexStore indexStore;
-	private final DataStatisticsStore dataStatisticsStore;
-	private final GeoWaveGTDataStore gtStore;
-	private final TransactionsAllocator transactionAllocator;
+public class GeoWaveDataStoreComponents {
+  private final InternalGeotoolsFeatureDataAdapter adapter;
+  private final DataStore dataStore;
+  private final IndexStore indexStore;
+  private final DataStatisticsStore dataStatisticsStore;
+  private final AdapterIndexMappingStore indexMappingStore;
+  private final GeoWaveGTDataStore gtStore;
+  private final TransactionsAllocator transactionAllocator;
+  private CoordinateReferenceSystem crs = null;
+  private final SimpleFeatureType featureType;
 
-	private final Index[] adapterIndices;
+  private final Index[] adapterIndices;
 
-	public GeoWaveDataStoreComponents(
-			final DataStore dataStore,
-			final DataStatisticsStore dataStatisticsStore,
-			final IndexStore indexStore,
-			final GeotoolsFeatureDataAdapter adapter,
-			final GeoWaveGTDataStore gtStore,
-			final TransactionsAllocator transactionAllocator ) {
-		this.adapter = adapter;
-		this.dataStore = dataStore;
-		this.indexStore = indexStore;
-		this.dataStatisticsStore = dataStatisticsStore;
-		this.gtStore = gtStore;
-		adapterIndices = gtStore.getIndicesForAdapter(
-				adapter,
-				false);
-		this.transactionAllocator = transactionAllocator;
-	}
+  public GeoWaveDataStoreComponents(
+      final DataStore dataStore,
+      final DataStatisticsStore dataStatisticsStore,
+      final AdapterIndexMappingStore indexMappingStore,
+      final IndexStore indexStore,
+      final InternalGeotoolsFeatureDataAdapter adapter,
+      final GeoWaveGTDataStore gtStore,
+      final TransactionsAllocator transactionAllocator) {
+    this.adapter = adapter;
+    this.dataStore = dataStore;
+    this.indexStore = indexStore;
+    this.dataStatisticsStore = dataStatisticsStore;
+    this.indexMappingStore = indexMappingStore;
+    this.gtStore = gtStore;
+    this.adapterIndices = getPreferredIndices();
+    CoordinateReferenceSystem adapterCRS = adapter.getFeatureType().getCoordinateReferenceSystem();
+    if (adapterCRS == null) {
+      adapterCRS = GeometryUtils.getDefaultCRS();
+    }
+    if (crs.equals(adapterCRS)) {
+      this.featureType = SimpleFeatureTypeBuilder.retype(adapter.getFeatureType(), adapterCRS);
+    } else {
+      this.featureType = SimpleFeatureTypeBuilder.retype(adapter.getFeatureType(), crs);
+    }
+    this.gtStore.setPreferredIndices(adapter, adapterIndices);
+    this.transactionAllocator = transactionAllocator;
+  }
 
-	public void initForWrite() {
-		// this is ensuring the adapter is properly initialized with the
-		// indicies and writing it to the adapterStore, in cases where the
-		// featuredataadapter was created from geotools datastore's createSchema
-		if (adapter instanceof InitializeWithIndicesDataAdapter) {
-			((InitializeWithIndicesDataAdapter) adapter).init(adapterIndices);
-		}
-		final short internalAdapterId = gtStore.getInternalAdapterStore().getAdapterId(
-				adapter.getTypeName());
-		final InternalDataAdapter<?> internalDataAdapter = new InternalDataAdapterWrapper(
-				adapter,
-				internalAdapterId);
-		gtStore.adapterStore.addAdapter(internalDataAdapter);
-	}
+  private Index[] getPreferredIndices() {
+    // For now just pick indices that match the CRS of the first spatial index we find
+    final AdapterToIndexMapping[] indexMappings =
+        indexMappingStore.getIndicesForAdapter(adapter.getAdapterId());
+    Index[] preferredIndices = null;
+    if ((indexMappings != null) && indexMappings.length > 0) {
+      preferredIndices =
+          Arrays.stream(indexMappings).map(mapping -> mapping.getIndex(indexStore)).filter(
+              index -> {
+                final CoordinateReferenceSystem indexCRS;
+                if (index.getIndexModel() instanceof CustomCrsIndexModel) {
+                  indexCRS = ((CustomCrsIndexModel) index.getIndexModel()).getCrs();
+                } else if (SpatialIndexUtils.hasSpatialDimensions(index)) {
+                  indexCRS = GeometryUtils.getDefaultCRS();
+                } else {
+                  return false;
+                }
+                if (crs == null) {
+                  crs = indexCRS;
+                } else if (!crs.equals(indexCRS)) {
+                  return false;
+                }
+                return true;
+              }).toArray(Index[]::new);
+    }
+    if (preferredIndices == null || preferredIndices.length == 0) {
+      preferredIndices = gtStore.getPreferredIndices(adapter);
+      this.crs = GeometryUtils.getIndexCrs(preferredIndices[0]);
+    }
 
-	public IndexStore getIndexStore() {
-		return indexStore;
-	}
+    return preferredIndices;
+  }
 
-	public GeotoolsFeatureDataAdapter getAdapter() {
-		return adapter;
-	}
+  @SuppressWarnings("unchecked")
+  public void initForWrite() {
+    // this is ensuring the adapter is properly initialized with the
+    // indices and writing it to the adapterStore, in cases where the
+    // featuredataadapter was created from geotools datastore's createSchema
+    dataStore.addType(adapter, adapterIndices);
+  }
 
-	public DataStore getDataStore() {
-		return dataStore;
-	}
+  public CoordinateReferenceSystem getCRS() {
+    return crs;
+  }
 
-	public GeoWaveGTDataStore getGTstore() {
-		return gtStore;
-	}
+  public SimpleFeatureType getFeatureType() {
+    return featureType;
+  }
 
-	public Index[] getAdapterIndices() {
-		return adapterIndices;
-	}
+  public IndexStore getIndexStore() {
+    return indexStore;
+  }
 
-	public DataStatisticsStore getStatsStore() {
-		return dataStatisticsStore;
-	}
+  public InternalGeotoolsFeatureDataAdapter getAdapter() {
+    return adapter;
+  }
 
-	public CloseableIterator<Index> getIndices(
-			final Map<StatisticsId, InternalDataStatistics<SimpleFeature, ?, ?>> stats,
-			final BasicQuery query,
-			final boolean spatialOnly ) {
-		final GeoWaveGTDataStore gtStore = getGTstore();
-		final Map<QueryHint, Object> queryHints = Maps.newHashMap();
-		queryHints.put(
-				QueryHint.MAX_RANGE_DECOMPOSITION,
-				gtStore.getDataStoreOptions().getMaxRangeDecomposition());
-		Index[] indices = gtStore.getIndicesForAdapter(
-				adapter,
-				spatialOnly);
-		if (spatialOnly && indices.length == 0) {
-			throw new UnsupportedOperationException(
-					"Query required spatial index, but none were found.");
-		}
-		return gtStore.getIndexQueryStrategy().getIndices(
-				stats,
-				query,
-				indices,
-				queryHints);
-	}
+  public DataStore getDataStore() {
+    return dataStore;
+  }
 
-	public void remove(
-			final SimpleFeature feature,
-			final GeoWaveTransaction transaction )
-			throws IOException {
-		final VectorQueryBuilder bldr = VectorQueryBuilder.newBuilder();
+  public AdapterIndexMappingStore getAdapterIndexMappingStore() {
+    return indexMappingStore;
+  }
 
-		dataStore.delete(bldr.setAuthorizations(
-				transaction.composeAuthorizations()).addTypeName(
-				adapter.getTypeName()).constraints(
-				bldr.constraintsFactory().dataIds(
-						new ByteArray[] {
-							adapter.getDataId(feature)
-						})).build());
-	}
+  public GeoWaveGTDataStore getGTstore() {
+    return gtStore;
+  }
 
-	public void remove(
-			final String fid,
-			final GeoWaveTransaction transaction )
-			throws IOException {
+  public Index[] getAdapterIndices() {
+    return adapterIndices;
+  }
 
-		final VectorQueryBuilder bldr = VectorQueryBuilder.newBuilder();
+  public DataStatisticsStore getStatsStore() {
+    return dataStatisticsStore;
+  }
 
-		dataStore.delete(bldr.setAuthorizations(
-				transaction.composeAuthorizations()).addTypeName(
-				adapter.getTypeName()).constraints(
-				bldr.constraintsFactory().dataIds(
-						new ByteArray[] {
-							new ByteArray(
-									StringUtils.stringToBinary(fid))
-						})).build());
+  public CloseableIterator<Index> getIndices(
+      final StatisticsCache statisticsCache,
+      final BasicQueryByClass query,
+      final boolean spatialOnly) {
+    final GeoWaveGTDataStore gtStore = getGTstore();
+    final Map<QueryHint, Object> queryHints = Maps.newHashMap();
+    queryHints.put(
+        QueryHint.MAX_RANGE_DECOMPOSITION,
+        gtStore.getDataStoreOptions().getMaxRangeDecomposition());
+    final Index[] indices = gtStore.getIndicesForAdapter(adapter, spatialOnly);
+    if (spatialOnly && (indices.length == 0)) {
+      throw new UnsupportedOperationException("Query required spatial index, but none were found.");
+    }
+    return gtStore.getIndexQueryStrategy().getIndices(
+        dataStatisticsStore,
+        indexMappingStore,
+        query,
+        indices,
+        adapter,
+        queryHints);
+  }
 
-	}
+  public void remove(final SimpleFeature feature, final GeoWaveTransaction transaction)
+      throws IOException {
+    final VectorQueryBuilder bldr = VectorQueryBuilder.newBuilder();
 
-	@SuppressWarnings("unchecked")
-	public void write(
-			final Iterator<SimpleFeature> featureIt,
-			final Set<String> fidList,
-			final GeoWaveTransaction transaction )
-			throws IOException {
-		final VisibilityWriter<SimpleFeature> visibilityWriter = new UniformVisibilityWriter<>(
-				new GlobalVisibilityHandler<>(
-						transaction.composeVisibility()));
-		dataStore.addType(
-				adapter,
-				adapterIndices);
-		try (Writer<SimpleFeature> indexWriter = dataStore.createWriter(adapter.getTypeName())) {
-			while (featureIt.hasNext()) {
-				final SimpleFeature feature = featureIt.next();
-				fidList.add(feature.getID());
-				indexWriter.write(
-						feature,
-						visibilityWriter);
-			}
-		}
+    dataStore.delete(
+        bldr.setAuthorizations(transaction.composeAuthorizations()).addTypeName(
+            adapter.getTypeName()).constraints(
+                bldr.constraintsFactory().dataIds(adapter.getDataId(feature))).build());
+  }
 
-	}
+  public void remove(final String fid, final GeoWaveTransaction transaction) throws IOException {
 
-	public void writeCommit(
-			final SimpleFeature feature,
-			final GeoWaveTransaction transaction )
-			throws IOException {
+    final VectorQueryBuilder bldr = VectorQueryBuilder.newBuilder();
 
-		final VisibilityWriter<SimpleFeature> visibilityWriter = new UniformVisibilityWriter<>(
-				new GlobalVisibilityHandler<>(
-						transaction.composeVisibility()));
-		dataStore.addType(
-				adapter,
-				adapterIndices);
-		try (Writer<SimpleFeature> indexWriter = dataStore.createWriter(adapter.getTypeName())) {
-			indexWriter.write(
-					feature,
-					visibilityWriter);
-		}
+    dataStore.delete(
+        bldr.setAuthorizations(transaction.composeAuthorizations()).addTypeName(
+            adapter.getTypeName()).constraints(
+                bldr.constraintsFactory().dataIds(StringUtils.stringToBinary(fid))).build());
+  }
 
-	}
+  @SuppressWarnings("unchecked")
+  public void write(
+      final Iterator<SimpleFeature> featureIt,
+      final Set<String> fidList,
+      final GeoWaveTransaction transaction) throws IOException {
+    final VisibilityHandler visibilityHandler =
+        new GlobalVisibilityHandler(transaction.composeVisibility());
+    dataStore.addType(adapter, adapterIndices);
+    try (Writer<SimpleFeature> indexWriter = dataStore.createWriter(adapter.getTypeName())) {
+      while (featureIt.hasNext()) {
+        final SimpleFeature feature = featureIt.next();
+        fidList.add(feature.getID());
+        indexWriter.write(feature, visibilityHandler);
+      }
+    }
+  }
 
-	public String getTransaction()
-			throws IOException {
-		return transactionAllocator.getTransaction();
-	}
+  public void writeCommit(final SimpleFeature feature, final GeoWaveTransaction transaction)
+      throws IOException {
 
-	public void releaseTransaction(
-			final String txID )
-			throws IOException {
-		transactionAllocator.releaseTransaction(txID);
-	}
+    final VisibilityHandler visibilityHandler =
+        new GlobalVisibilityHandler(transaction.composeVisibility());
+    dataStore.addType(adapter, adapterIndices);
+    try (Writer<SimpleFeature> indexWriter = dataStore.createWriter(adapter.getTypeName())) {
+      indexWriter.write(feature, visibilityHandler);
+    }
+  }
+
+  public String getTransaction() throws IOException {
+    return transactionAllocator.getTransaction();
+  }
+
+  public void releaseTransaction(final String txID) throws IOException {
+    transactionAllocator.releaseTransaction(txID);
+  }
 }

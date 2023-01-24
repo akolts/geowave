@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
+# Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
 # 
 # See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.
@@ -17,23 +17,18 @@
 trap 'chmod -R 777 $WORKSPACE' EXIT
 trap 'chmod -R 777 $WORKSPACE && exit' ERR
 
+# Get the version
+GEOWAVE_VERSION=$(cat $WORKSPACE/deploy/target/version.txt)
+BUILD_TYPE=$(cat $WORKSPACE/deploy/target/build-type.txt)
+GEOWAVE_RPM_VERSION=$(cat $WORKSPACE/deploy/target/rpm_version.txt)
+
 echo "---------------------------------------------------------------"
 echo "         Building GeoWave Common"
 echo "---------------------------------------------------------------"
-mkdir -p $WORKSPACE/deploy/target
-GEOWAVE_VERSION_STR="$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive -f $WORKSPACE/pom.xml exec:exec)"
-GEOWAVE_VERSION="$(echo ${GEOWAVE_VERSION_STR} | sed -e 's/"//g' -e 's/-SNAPSHOT//g')"
-echo $GEOWAVE_VERSION > $WORKSPACE/deploy/target/version.txt
-if [[ "$GEOWAVE_VERSION_STR" =~ "-SNAPSHOT" ]]
-then
-	#its a dev/latest build
-	echo "dev" > $WORKSPACE/deploy/target/build-type.txt
-	echo "latest" > $WORKSPACE/deploy/target/version-url.txt
-else
-	#its a release
-	echo "release" > $WORKSPACE/deploy/target/build-type.txt
-	echo $GEOWAVE_VERSION_STR > $WORKSPACE/deploy/target/version-url.txt
-fi
+echo "GEOWAVE_VERSION=${GEOWAVE_VERSION}"
+echo "INSTALL4J_HOME=${INSTALL4J_HOME}"
+echo "BUILD_ARGS=${BUILD_ARGS} ${@}"
+echo "---------------------------------------------------------------"
 # Build and archive HTML/PDF docs
 if [[ ! -f $WORKSPACE/target/site-${GEOWAVE_VERSION}.tar.gz ]]; then
     mvn -q javadoc:aggregate $BUILD_ARGS "$@"
@@ -46,7 +41,8 @@ if [[ ! -f $WORKSPACE/docs/target/manpages-${GEOWAVE_VERSION}.tar.gz ]]; then
     mkdir -p $WORKSPACE/docs/target/{asciidoc,manpages}
     cp -fR $WORKSPACE/docs/content/commands/manpages/* $WORKSPACE/docs/target/asciidoc
     find $WORKSPACE/docs/target/asciidoc/ -name "*.txt" -exec sed -i "s|//:||" {} \;
-    find $WORKSPACE/docs/target/asciidoc/ -name "*.txt" -exec a2x -d manpage -f manpage {} -D $WORKSPACE/docs/target/manpages \;
+    find $WORKSPACE/docs/target/asciidoc/ -name "*.txt" -exec sed -i "s|^====|==|" {} \;
+    find $WORKSPACE/docs/target/asciidoc/ -name "*.txt" -exec asciidoctor -d manpage -b manpage {} -D $WORKSPACE/docs/target/manpages \;
     tar -czf $WORKSPACE/docs/target/manpages-${GEOWAVE_VERSION}.tar.gz -C $WORKSPACE/docs/target/manpages/ .
 fi
 ## Copy over the puppet scripts
@@ -56,7 +52,14 @@ fi
 
 ## Build the pyspark module
 if [[ ! -f $WORKSPACE/analytics/pyspark/target/geowave_pyspark-${GEOWAVE_VERSION}.tar.gz ]]; then
-    mvn package -am -pl analytics/pyspark -Ppyspark -Dpython.executable=python3.6
-    mv $WORKSPACE/analytics/pyspark/target/geowave_pyspark-${GEOWAVE_VERSION_STR}.tar.gz $WORKSPACE/analytics/pyspark/target/geowave_pyspark-${GEOWAVE_VERSION}.tar.gz
+    mvn package -am -pl analytics/pyspark -P python -Dpython.executable=python3.6 $BUILD_ARGS "$@"
+    if [[ ! -f $WORKSPACE/analytics/pyspark/target/geowave_pyspark-${GEOWAVE_VERSION}.tar.gz ]]; then
+      mv $WORKSPACE/analytics/pyspark/target/geowave_pyspark-*.tar.gz $WORKSPACE/analytics/pyspark/target/geowave_pyspark-${GEOWAVE_VERSION}.tar.gz
+    fi
 fi
-
+if [ -d /opt/install4j7 ]; then
+    # Build standalone installer
+    echo '###### Building standalone installer'
+    mvn -pl '!test' package -P build-installer-plugin $BUILD_ARGS "$@"
+    mvn package -pl deploy -P build-installer-main -Dinstall4j.home=/opt/install4j7 $BUILD_ARGS "$@"
+fi

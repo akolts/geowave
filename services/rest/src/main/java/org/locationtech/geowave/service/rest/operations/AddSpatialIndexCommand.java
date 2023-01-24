@@ -1,184 +1,132 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
- *   
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
+ *
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.service.rest.operations;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
-
 import org.locationtech.geowave.core.cli.api.OperationParams;
 import org.locationtech.geowave.core.cli.api.ServiceEnabledCommand;
-import org.locationtech.geowave.core.cli.exceptions.DuplicateEntryException;
-import org.locationtech.geowave.core.cli.operations.config.ConfigSection;
-import org.locationtech.geowave.core.cli.operations.config.options.ConfigOptions;
-import org.locationtech.geowave.core.geotime.ingest.SpatialOptions;
-import org.locationtech.geowave.core.store.cli.remote.options.IndexPluginOptions;
+import org.locationtech.geowave.core.geotime.index.SpatialOptions;
+import org.locationtech.geowave.core.store.api.Index;
+import org.locationtech.geowave.core.store.cli.index.IndexSection;
+import org.locationtech.geowave.core.store.cli.store.DataStorePluginOptions;
+import org.locationtech.geowave.core.store.cli.store.StoreLoader;
+import org.locationtech.geowave.core.store.index.IndexPluginOptions;
+import org.locationtech.geowave.core.store.index.IndexStore;
 import org.locationtech.geowave.core.store.operations.remote.options.BasicIndexOptions;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.ParametersDelegate;
 
-@Parameters(commandDescription = "Configure an index for usage in GeoWave")
-public class AddSpatialIndexCommand extends
-		ServiceEnabledCommand<String>
-{
-	/**
-	 * A REST Operation for the AddIndexCommand where --type=spatial
-	 */
+@Parameters(commandDescription = "Add a spatial index to a GeoWave store")
+public class AddSpatialIndexCommand extends ServiceEnabledCommand<String> {
+  /** A REST Operation for the AddIndexCommand where --type=spatial */
+  @Parameter(description = "<store name> <index name>", required = true)
+  private List<String> parameters = new ArrayList<>();
 
-	@Parameter(description = "<name>", required = true)
-	private List<String> parameters = new ArrayList<String>();
+  @ParametersDelegate
+  private BasicIndexOptions basicIndexOptions = new BasicIndexOptions();
 
-	@Parameter(names = {
-		"-d",
-		"--default"
-	}, description = "Make this the default index creating stores")
-	private Boolean makeDefault;
+  private IndexPluginOptions pluginOptions = new IndexPluginOptions();
 
-	@ParametersDelegate
-	private final BasicIndexOptions basicIndexOptions = new BasicIndexOptions();
+  @ParametersDelegate
+  SpatialOptions opts = new SpatialOptions();
 
-	private IndexPluginOptions pluginOptions = new IndexPluginOptions();
+  @Override
+  public boolean prepare(final OperationParams params) {
 
-	@ParametersDelegate
-	SpatialOptions opts = new SpatialOptions();
+    pluginOptions.selectPlugin("spatial");
+    pluginOptions.setBasicIndexOptions(basicIndexOptions);
+    pluginOptions.setDimensionalityTypeOptions(opts);
+    return true;
+  }
 
-	@Override
-	public boolean prepare(
-			final OperationParams params ) {
+  @Override
+  public void execute(final OperationParams params) throws Exception {
+    computeResults(params);
+  }
 
-		pluginOptions.selectPlugin("spatial");
-		pluginOptions.setBasicIndexOptions(basicIndexOptions);
-		pluginOptions.setDimensionalityTypeOptions(opts);
-		return true;
-	}
+  @Override
+  public String getId() {
+    return IndexSection.class.getName() + ".add/spatial";
+  }
 
-	@Override
-	public void execute(
-			final OperationParams params )
-			throws Exception {
-		computeResults(params);
-	}
+  @Override
+  public String getPath() {
+    return "v0/index/add/spatial";
+  }
 
-	@Override
-	public String getId() {
-		return ConfigSection.class.getName() + ".addindex/spatial";
-	}
+  public IndexPluginOptions getPluginOptions() {
+    return pluginOptions;
+  }
 
-	@Override
-	public String getPath() {
-		return "v0/config/addindex/spatial";
-	}
+  public String getPluginName() {
+    return parameters.get(0);
+  }
 
-	public IndexPluginOptions getPluginOptions() {
-		return pluginOptions;
-	}
+  public String getNamespace() {
+    return IndexPluginOptions.getIndexNamespace(getPluginName());
+  }
 
-	public String getPluginName() {
-		return parameters.get(0);
-	}
+  public List<String> getParameters() {
+    return parameters;
+  }
 
-	public String getNamespace() {
-		return IndexPluginOptions.getIndexNamespace(getPluginName());
-	}
+  public void setParameters(final String storeName, final String indexName) {
+    parameters = new ArrayList<>();
+    parameters.add(storeName);
+    parameters.add(indexName);
+  }
 
-	public List<String> getParameters() {
-		return parameters;
-	}
+  public String getType() {
+    return "spatial";
+  }
 
-	public void setParameters(
-			final String indexName ) {
-		parameters = new ArrayList<String>();
-		parameters.add(indexName);
-	}
+  public void setPluginOptions(final IndexPluginOptions pluginOptions) {
+    this.pluginOptions = pluginOptions;
+  }
 
-	public Boolean getMakeDefault() {
-		return makeDefault;
-	}
+  @Override
+  public String computeResults(final OperationParams params) throws Exception {
 
-	public void setMakeDefault(
-			final Boolean makeDefault ) {
-		this.makeDefault = makeDefault;
-	}
+    // Ensure that a name is chosen.
+    if (getParameters().size() < 2) {
+      System.out.println(getParameters());
+      throw new ParameterException("Must specify store name and index name");
+    }
 
-	public String getType() {
-		return "spatial";
-	}
+    final String storeName = getParameters().get(0);
+    final String indexName = getParameters().get(1);
+    pluginOptions.setName(indexName);
 
-	public void setPluginOptions(
-			final IndexPluginOptions pluginOptions ) {
-		this.pluginOptions = pluginOptions;
-	}
+    // Attempt to load store.
+    final File configFile = getGeoWaveConfigFile(params);
 
-	@Override
-	public String computeResults(
-			final OperationParams params )
-			throws Exception {
+    final StoreLoader inputStoreLoader = new StoreLoader(storeName);
+    if (!inputStoreLoader.loadFromConfig(configFile)) {
+      throw new ParameterException("Cannot find store name: " + inputStoreLoader.getStoreName());
+    }
+    DataStorePluginOptions storeOptions = inputStoreLoader.getDataStorePlugin();
 
-		// Ensure that a name is chosen.
-		if (getParameters().size() < 1) {
-			System.out.println(getParameters());
-			throw new ParameterException(
-					"Must specify index name");
-		}
+    final Index newIndex = pluginOptions.createIndex(storeOptions.createDataStore());
 
-		if (getType() == null) {
-			throw new ParameterException(
-					"No type could be infered");
-		}
+    IndexStore indexStore = storeOptions.createIndexStore();
 
-		final File propFile = getGeoWaveConfigFile(params);
+    Index existingIndex = indexStore.getIndex(newIndex.getName());
+    if (existingIndex != null) {
+      throw new ParameterException("That index already exists: " + newIndex.getName());
+    }
 
-		final Properties existingProps = ConfigOptions.loadProperties(propFile);
+    storeOptions.createDataStore().addIndex(newIndex);
 
-		// Make sure we're not already in the index.
-		final IndexPluginOptions existPlugin = new IndexPluginOptions();
-		if (existPlugin.load(
-				existingProps,
-				getNamespace())) {
-			throw new DuplicateEntryException(
-					"That store already exists: " + getPluginName());
-
-		}
-
-		pluginOptions.save(
-				existingProps,
-				getNamespace());
-
-		// Make default?
-		if (Boolean.TRUE.equals(makeDefault)) {
-
-			existingProps.setProperty(
-					IndexPluginOptions.DEFAULT_PROPERTY_NAMESPACE,
-					getPluginName());
-		}
-
-		// Write properties file
-		ConfigOptions.writeProperties(
-				propFile,
-				existingProps);
-
-		StringBuilder builder = new StringBuilder();
-		for (Object key : existingProps.keySet()) {
-			String[] split = key.toString().split(
-					"\\.");
-			if (split.length > 1) {
-				if (split[1].equals(parameters.get(0))) {
-					builder.append(key.toString() + "=" + existingProps.getProperty(key.toString()) + "\n");
-				}
-			}
-		}
-		return builder.toString();
-	}
+    return newIndex.getName();
+  }
 }

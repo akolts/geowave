@@ -1,13 +1,11 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
- *   
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
+ *
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.datastore.accumulo;
 
 import java.io.Serializable;
@@ -19,7 +17,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 import org.locationtech.geowave.core.store.entities.GeoWaveKey;
@@ -28,119 +25,114 @@ import org.locationtech.geowave.core.store.entities.GeoWaveRow;
 import org.locationtech.geowave.core.store.entities.GeoWaveValue;
 import org.locationtech.geowave.core.store.entities.GeoWaveValueImpl;
 
-public class AccumuloRow implements
-		GeoWaveRow
-{
-	private final GeoWaveKey key;
-	private GeoWaveValue[] fieldValues;
+public class AccumuloRow implements GeoWaveRow {
+  private final GeoWaveKey key;
+  private GeoWaveValue[] fieldValues;
 
-	private static class LatestFirstComparator implements
-			Comparator<Long>,
-			Serializable
-	{
-		public int compare(
-				Long ts1,
-				Long ts2 ) {
-			return ts2.compareTo(ts1);
-		}
-	}
+  private static class LatestFirstComparator implements Comparator<Long>, Serializable {
+    /**
+     *
+     */
+    private static final long serialVersionUID = 1L;
 
-	public AccumuloRow(
-			final byte[] rowBytes,
-			final int partitionKeyLength,
-			final List<Map<Key, Value>> fieldValueMapList,
-			final boolean sortByTime ) {
-		// TODO: GEOWAVE-1018 - can we do something more clever that lazily
-		// parses only whats required by the getter (and caches anything else
-		// that is parsed)?
-		key = new GeoWaveKeyImpl(
-				rowBytes,
-				partitionKeyLength);
+    @Override
+    public int compare(final Long ts1, final Long ts2) {
+      return ts2.compareTo(ts1);
+    }
+  }
 
-		if (sortByTime) {
-			setTimeSortedFieldValues(fieldValueMapList);
-		}
-		else {
-			setFieldValues(fieldValueMapList);
-		}
-	}
+  public AccumuloRow(
+      final byte[] rowBytes,
+      final int partitionKeyLength,
+      final List<Map<Key, Value>> fieldValueMapList,
+      final boolean sortByTime) {
+    // TODO: GEOWAVE-1018 - can we do something more clever that lazily
+    // parses only whats required by the getter (and caches anything else
+    // that is parsed)?
+    key = new GeoWaveKeyImpl(rowBytes, partitionKeyLength);
 
-	private void setFieldValues(
-			List<Map<Key, Value>> fieldValueMapList ) {
-		List<GeoWaveValue> fieldValueList = new ArrayList();
+    if (sortByTime) {
+      setTimeSortedFieldValues(fieldValueMapList);
+    } else {
+      setFieldValues(fieldValueMapList);
+    }
+  }
 
-		for (final Map<Key, Value> kvMap : fieldValueMapList) {
-			for (final Entry<Key, Value> kv : kvMap.entrySet()) {
-				fieldValueList.add(new GeoWaveValueImpl(
-						kv.getKey().getColumnQualifier().getBytes(),
-						kv.getKey().getColumnVisibility().getBytes(),
-						kv.getValue().get()));
-			}
-		}
+  private void setFieldValues(final List<Map<Key, Value>> fieldValueMapList) {
+    final List<GeoWaveValue> fieldValueList = new ArrayList();
 
-		fieldValues = new GeoWaveValue[fieldValueList.size()];
-		int i = 0;
+    for (final Map<Key, Value> kvMap : fieldValueMapList) {
+      for (final Entry<Key, Value> kv : kvMap.entrySet()) {
+        fieldValueList.add(
+            new GeoWaveValueImpl(
+                kv.getKey().getColumnQualifier().getBytes(),
+                kv.getKey().getColumnVisibility().getBytes(),
+                kv.getValue().get()));
+      }
+    }
 
-		for (GeoWaveValue gwValue : fieldValueList) {
-			fieldValues[i++] = gwValue;
-		}
-	}
+    fieldValues = new GeoWaveValue[fieldValueList.size()];
+    int i = 0;
 
-	private void setTimeSortedFieldValues(
-			final List<Map<Key, Value>> fieldValueMapList ) {
-		SortedMap<Long, GeoWaveValue> fieldValueSortedMap = new TreeMap(
-				new LatestFirstComparator());
+    for (final GeoWaveValue gwValue : fieldValueList) {
+      fieldValues[i++] = gwValue;
+    }
+  }
 
-		for (final Map<Key, Value> kvMap : fieldValueMapList) {
-			for (final Entry<Key, Value> kv : kvMap.entrySet()) {
-				fieldValueSortedMap.put(
-						kv.getKey().getTimestamp(),
-						new GeoWaveValueImpl(
-								kv.getKey().getColumnQualifier().getBytes(),
-								kv.getKey().getColumnVisibility().getBytes(),
-								kv.getValue().get()));
-			}
-		}
+  private void setTimeSortedFieldValues(final List<Map<Key, Value>> fieldValueMapList) {
+    final SortedMap<Long, GeoWaveValue> fieldValueSortedMap =
+        new TreeMap(new LatestFirstComparator());
 
-		Iterator it = fieldValueSortedMap.entrySet().iterator();
+    for (final Map<Key, Value> kvMap : fieldValueMapList) {
+      for (final Entry<Key, Value> kv : kvMap.entrySet()) {
+        fieldValueSortedMap.put(
+            kv.getKey().getTimestamp(),
+            new GeoWaveValueImpl(
+                kv.getKey().getColumnQualifier().getBytes(),
+                kv.getKey().getColumnVisibility().getBytes(),
+                kv.getValue().get()));
+      }
+    }
 
-		fieldValues = new GeoWaveValue[fieldValueSortedMap.size()];
-		int i = 0;
+    final Iterator it = fieldValueSortedMap.entrySet().iterator();
 
-		while (it.hasNext()) {
-			Map.Entry entry = (Map.Entry) it.next();
-			GeoWaveValue gwValue = (GeoWaveValue) entry.getValue();
-			fieldValues[i++] = gwValue;
-		}
-	}
+    fieldValues = new GeoWaveValue[fieldValueSortedMap.size()];
+    int i = 0;
 
-	@Override
-	public byte[] getDataId() {
-		return key.getDataId();
-	}
+    while (it.hasNext()) {
+      final Map.Entry entry = (Map.Entry) it.next();
+      final GeoWaveValue gwValue = (GeoWaveValue) entry.getValue();
+      fieldValues[i++] = gwValue;
+    }
+  }
 
-	@Override
-	public short getAdapterId() {
-		return key.getAdapterId();
-	}
+  @Override
+  public byte[] getDataId() {
+    return key.getDataId();
+  }
 
-	@Override
-	public byte[] getSortKey() {
-		return key.getSortKey();
-	}
+  @Override
+  public short getAdapterId() {
+    return key.getAdapterId();
+  }
 
-	@Override
-	public byte[] getPartitionKey() {
-		return key.getPartitionKey();
-	}
+  @Override
+  public byte[] getSortKey() {
+    return key.getSortKey();
+  }
 
-	@Override
-	public int getNumberOfDuplicates() {
-		return key.getNumberOfDuplicates();
-	}
+  @Override
+  public byte[] getPartitionKey() {
+    return key.getPartitionKey();
+  }
 
-	@Override
-	public GeoWaveValue[] getFieldValues() {
-		return fieldValues;
-	}
+  @Override
+  public int getNumberOfDuplicates() {
+    return key.getNumberOfDuplicates();
+  }
+
+  @Override
+  public GeoWaveValue[] getFieldValues() {
+    return fieldValues;
+  }
 }

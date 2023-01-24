@@ -1,13 +1,11 @@
-/*******************************************************************************
- * Copyright (c) 2013-2018 Contributors to the Eclipse Foundation
- *   
- *  See the NOTICE file distributed with this work for additional
- *  information regarding copyright ownership.
- *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the Apache License,
- *  Version 2.0 which accompanies this distribution and is available at
- *  http://www.apache.org/licenses/LICENSE-2.0.txt
- ******************************************************************************/
+/**
+ * Copyright (c) 2013-2022 Contributors to the Eclipse Foundation
+ *
+ * <p> See the NOTICE file distributed with this work for additional information regarding copyright
+ * ownership. All rights reserved. This program and the accompanying materials are made available
+ * under the terms of the Apache License, Version 2.0 which accompanies this distribution and is
+ * available at http://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 package org.locationtech.geowave.format.sentinel2;
 
 import java.io.BufferedInputStream;
@@ -26,11 +24,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
-
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.geojson.geom.GeometryJSON;
@@ -38,327 +34,244 @@ import org.geotools.util.Converters;
 import org.locationtech.geowave.adapter.vector.util.DateUtilities;
 import org.locationtech.geowave.format.sentinel2.amazon.AmazonImageryProvider;
 import org.locationtech.geowave.format.sentinel2.theia.TheiaImageryProvider;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.AttributeDescriptor;
-
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-
 import net.sf.json.JSONObject;
 
-/**
- * Defines a provider of Sentinel2 imagery.
- */
-public abstract class Sentinel2ImageryProvider
-{
-	private final static Logger LOGGER = LoggerFactory.getLogger(Sentinel2ImageryProvider.class);
+/** Defines a provider of Sentinel2 imagery. */
+public abstract class Sentinel2ImageryProvider {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Sentinel2ImageryProvider.class);
 
-	protected final static String DOWNLOAD_DIRECTORY = "scenes";
+  protected static final String DOWNLOAD_DIRECTORY = "scenes";
 
-	// Available classes implementing Sentinel2 imagery providers.
-	private final static Class<?>[] PROVIDER_CLASSES = new Class<?>[] {
-		TheiaImageryProvider.class,
-		AmazonImageryProvider.class
-	};
-	private final static Map<String, Sentinel2ImageryProvider> PROVIDERS = new HashMap<String, Sentinel2ImageryProvider>();
-	static {
-		for (Class<?> clazz : PROVIDER_CLASSES) {
-			try {
-				Sentinel2ImageryProvider provider = (Sentinel2ImageryProvider) clazz.newInstance();
-				if (provider.isAvailable()) {
-					PROVIDERS.put(
-							provider.providerName().toUpperCase(),
-							provider);
-				}
-			}
-			catch (InstantiationException | IllegalAccessException e) {
-				LOGGER.error(
-						"Unable to create new instance of " + clazz.getName(),
-						e);
-			}
-		}
-	}
+  // Available classes implementing Sentinel2 imagery providers.
+  private static final Class<?>[] PROVIDER_CLASSES =
+      new Class<?>[] {TheiaImageryProvider.class, AmazonImageryProvider.class};
+  private static final Map<String, Sentinel2ImageryProvider> PROVIDERS = new HashMap<>();
 
-	/**
-	 * Returns the available providers implementing a Sentinel2 imagery
-	 * repository.
-	 */
-	public static Sentinel2ImageryProvider[] getProviders() {
-		return PROVIDERS.values().toArray(
-				new Sentinel2ImageryProvider[PROVIDERS.size()]);
-	}
+  static {
+    for (final Class<?> clazz : PROVIDER_CLASSES) {
+      try {
+        final Sentinel2ImageryProvider provider = (Sentinel2ImageryProvider) clazz.newInstance();
+        if (provider.isAvailable()) {
+          PROVIDERS.put(provider.providerName().toUpperCase(), provider);
+        }
+      } catch (InstantiationException | IllegalAccessException e) {
+        LOGGER.error("Unable to create new instance of " + clazz.getName(), e);
+      }
+    }
+  }
 
-	/**
-	 * Returns the Sentinel2 provider with the specified name.
-	 */
-	public static Sentinel2ImageryProvider getProvider(
-			String providerName ) {
-		return PROVIDERS.get(providerName.toUpperCase());
-	}
+  /** Returns the available providers implementing a Sentinel2 imagery repository. */
+  public static Sentinel2ImageryProvider[] getProviders() {
+    return PROVIDERS.values().toArray(new Sentinel2ImageryProvider[PROVIDERS.size()]);
+  }
 
-	/**
-	 * Converts a JSONArray to an Iterator<SimpleFeature> instance.
-	 */
-	protected static class JSONFeatureIterator implements
-			Iterator<SimpleFeature>
-	{
-		private Sentinel2ImageryProvider provider;
-		private SimpleFeatureType featureType;
-		private Iterator<?> iterator;
-		private JSONObject currentObject;
+  /** Returns the Sentinel2 provider with the specified name. */
+  public static Sentinel2ImageryProvider getProvider(final String providerName) {
+    return PROVIDERS.get(providerName.toUpperCase());
+  }
 
-		public JSONFeatureIterator(
-				Sentinel2ImageryProvider provider,
-				SimpleFeatureType featureType,
-				Iterator<?> iterator ) {
-			this.provider = provider;
-			this.featureType = featureType;
-			this.iterator = iterator;
-		}
+  /** Converts a JSONArray to an Iterator<SimpleFeature> instance. */
+  protected static class JSONFeatureIterator implements Iterator<SimpleFeature> {
+    private final Sentinel2ImageryProvider provider;
+    private final SimpleFeatureType featureType;
+    private final Iterator<?> iterator;
+    private JSONObject currentObject;
 
-		public JSONObject currentObject() {
-			return this.currentObject;
-		}
+    public JSONFeatureIterator(
+        final Sentinel2ImageryProvider provider,
+        final SimpleFeatureType featureType,
+        final Iterator<?> iterator) {
+      this.provider = provider;
+      this.featureType = featureType;
+      this.iterator = iterator;
+    }
 
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
+    public JSONObject currentObject() {
+      return currentObject;
+    }
 
-		@Override
-		public SimpleFeature next() {
-			final JSONObject jsonObject = this.currentObject = (JSONObject) this.iterator.next();
+    @Override
+    public boolean hasNext() {
+      return iterator.hasNext();
+    }
 
-			final String id = jsonObject.getString("id");
-			final JSONObject properties = (JSONObject) jsonObject.get("properties");
+    @Override
+    public SimpleFeature next() {
+      final JSONObject jsonObject = currentObject = (JSONObject) iterator.next();
 
-			final SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(
-					featureType);
-			final SimpleFeature feature = featureBuilder.buildFeature(id);
+      final String id = jsonObject.getString("id");
+      final JSONObject properties = (JSONObject) jsonObject.get("properties");
 
-			// Main ID attribute
-			feature.setAttribute(
-					SceneFeatureIterator.ENTITY_ID_ATTRIBUTE_NAME,
-					id);
-			feature.setAttribute(
-					SceneFeatureIterator.PROVIDER_NAME_ATTRIBUTE_NAME,
-					provider.providerName());
+      final SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(featureType);
+      final SimpleFeature feature = featureBuilder.buildFeature(id);
 
-			// Fill Geometry
-			try {
-				Geometry geometry = new GeometryJSON().read(jsonObject.get(
-						"geometry").toString());
-				geometry.setSRID(4326);
-				feature.setDefaultGeometry(geometry);
-			}
-			catch (IOException e) {
-				LOGGER.warn("Unable to read geometry '" + e.getMessage() + "'");
-			}
+      // Main ID attribute
+      feature.setAttribute(SceneFeatureIterator.ENTITY_ID_ATTRIBUTE_NAME, id);
+      feature.setAttribute(
+          SceneFeatureIterator.PROVIDER_NAME_ATTRIBUTE_NAME,
+          provider.providerName());
 
-			// Fill attributes
-			final List<AttributeDescriptor> descriptorList = featureType.getAttributeDescriptors();
+      // Fill Geometry
+      try {
+        final Geometry geometry = new GeometryJSON().read(jsonObject.get("geometry").toString());
+        geometry.setSRID(4326);
+        feature.setDefaultGeometry(geometry);
+      } catch (final IOException e) {
+        LOGGER.warn("Unable to read geometry '" + e.getMessage() + "'");
+      }
 
-			for (int i = 3, icount = descriptorList.size(); i < icount; i++) {
-				final AttributeDescriptor descriptor = descriptorList.get(i);
+      // Fill attributes
+      final List<AttributeDescriptor> descriptorList = featureType.getAttributeDescriptors();
 
-				final String name = descriptor.getLocalName();
-				final Class<?> binding = descriptor.getType().getBinding();
-				Object value = properties.get(name);
+      for (int i = 3, icount = descriptorList.size(); i < icount; i++) {
+        final AttributeDescriptor descriptor = descriptorList.get(i);
 
-				if (value == null) {
-					continue;
-				}
-				try {
-					value = binding == Date.class ? DateUtilities.parseISO(value.toString()) : Converters.convert(
-							value,
-							binding);
-				}
-				catch (ParseException e) {
-					LOGGER.warn("Unable to convert attribute '" + e.getMessage() + "'");
-					value = null;
-				}
-				feature.setAttribute(
-						name,
-						value);
-			}
-			return feature;
-		}
-	}
+        final String name = descriptor.getLocalName();
+        final Class<?> binding = descriptor.getType().getBinding();
+        Object value = properties.get(name);
 
-	/**
-	 * Provider Name (It should be unique).
-	 */
-	public abstract String providerName();
+        if (value == null) {
+          continue;
+        }
+        try {
+          value =
+              binding == Date.class ? DateUtilities.parseISO(value.toString())
+                  : Converters.convert(value, binding);
+        } catch (final ParseException e) {
+          LOGGER.warn("Unable to convert attribute '" + e.getMessage() + "'");
+          value = null;
+        }
+        feature.setAttribute(name, value);
+      }
+      return feature;
+    }
+  }
 
-	/**
-	 * Provider Description.
-	 */
-	public abstract String description();
+  /** Provider Name (It should be unique). */
+  public abstract String providerName();
 
-	/**
-	 * Returns the available Product collection of this Provider.
-	 */
-	public abstract String[] collections();
+  /** Provider Description. */
+  public abstract String description();
 
-	/**
-	 * Returns {@code true} if this provider is ready for ingest imagery.
-	 */
-	public abstract boolean isAvailable();
+  /** Returns the available Product collection of this Provider. */
+  public abstract String[] collections();
 
-	/**
-	 * Returns the SimpleFeatureTypeBuilder which provides the Scene schema of
-	 * the repository.
-	 */
-	public abstract SimpleFeatureTypeBuilder sceneFeatureTypeBuilder()
-			throws NoSuchAuthorityCodeException,
-			FactoryException;
+  /** Returns {@code true} if this provider is ready for ingest imagery. */
+  public abstract boolean isAvailable();
 
-	/**
-	 * Returns the SimpleFeatureTypeBuilder which provides the Bands schema of
-	 * the repository.
-	 */
-	public abstract SimpleFeatureTypeBuilder bandFeatureTypeBuilder()
-			throws NoSuchAuthorityCodeException,
-			FactoryException;
+  /** Returns the SimpleFeatureTypeBuilder which provides the Scene schema of the repository. */
+  public abstract SimpleFeatureTypeBuilder sceneFeatureTypeBuilder()
+      throws NoSuchAuthorityCodeException, FactoryException;
 
-	/**
-	 * Returns the Product/Scene collection that matches the specified criteria.
-	 */
-	public abstract Iterator<SimpleFeature> searchScenes(
-			final File scenesDir,
-			final String collection,
-			final String platform,
-			final String location,
-			final Envelope envelope,
-			final Date startDate,
-			final Date endDate,
-			final int orbitNumber,
-			final int relativeOrbitNumber )
-			throws IOException;
+  /** Returns the SimpleFeatureTypeBuilder which provides the Bands schema of the repository. */
+  public abstract SimpleFeatureTypeBuilder bandFeatureTypeBuilder()
+      throws NoSuchAuthorityCodeException, FactoryException;
 
-	/**
-	 * Download the scene from the Sentinel2 repository.
-	 */
-	public abstract boolean downloadScene(
-			final SimpleFeature scene,
-			final String workspaceDir,
-			final String userIdent,
-			final String password )
-			throws IOException;
+  /** Returns the Product/Scene collection that matches the specified criteria. */
+  public abstract Iterator<SimpleFeature> searchScenes(
+      final File scenesDir,
+      final String collection,
+      final String platform,
+      final String location,
+      final Envelope envelope,
+      final Date startDate,
+      final Date endDate,
+      final int orbitNumber,
+      final int relativeOrbitNumber) throws IOException;
 
-	/**
-	 * Fetch the coverage of the specified band in the specified workspace
-	 * directory
-	 */
-	public abstract RasterBandData getCoverage(
-			final SimpleFeature band,
-			final String workspaceDir )
-			throws IOException;
+  /** Download the scene from the Sentinel2 repository. */
+  public abstract boolean downloadScene(
+      final SimpleFeature scene,
+      final String workspaceDir,
+      final String userIdent,
+      final String password) throws IOException;
 
-	/**
-	 * Load CAs from a custom certs file.
-	 */
-	protected static boolean applyCustomCertsFile(
-			HttpsURLConnection connection,
-			final File customCertsFile )
-			throws GeneralSecurityException,
-			IOException {
-		if (customCertsFile.exists()) {
-			try {
-				// Load CAs from an InputStream
-				final CertificateFactory cf = CertificateFactory.getInstance("X.509");
+  /** Fetch the coverage of the specified band in the specified workspace directory */
+  public abstract RasterBandData getCoverage(final SimpleFeature band, final String workspaceDir)
+      throws IOException;
 
-				final InputStream caInput = new BufferedInputStream(
-						new FileInputStream(
-								customCertsFile));
-				final Certificate ca = cf.generateCertificate(caInput);
+  /** Load CAs from a custom certs file. */
+  protected static boolean applyCustomCertsFile(
+      final HttpsURLConnection connection,
+      final File customCertsFile) throws GeneralSecurityException, IOException {
+    if (customCertsFile.exists()) {
+      try {
+        // Load CAs from an InputStream
+        final CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-				// Create a KeyStore containing our trusted CAs
-				final String keyStoreType = KeyStore.getDefaultType();
-				final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-				keyStore.load(
-						null,
-						null);
-				keyStore.setCertificateEntry(
-						"ca",
-						ca);
+        final InputStream caInput = new BufferedInputStream(new FileInputStream(customCertsFile));
+        final Certificate ca = cf.generateCertificate(caInput);
 
-				// Create a TrustManager that trusts the CAs in our KeyStore
-				final String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
-				final TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
-				tmf.init(keyStore);
+        // Create a KeyStore containing our trusted CAs
+        final String keyStoreType = KeyStore.getDefaultType();
+        final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+        keyStore.load(null, null);
+        keyStore.setCertificateEntry("ca", ca);
 
-				// Create an SSLContext that uses our TrustManager
-				final SSLContext context = SSLContext.getInstance("TLS");
-				context.init(
-						null,
-						tmf.getTrustManagers(),
-						null);
-				connection.setSSLSocketFactory(context.getSocketFactory());
+        // Create a TrustManager that trusts the CAs in our KeyStore
+        final String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+        final TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
+        tmf.init(keyStore);
 
-				return true;
-			}
-			catch (final GeneralSecurityException securityException) {
-				LOGGER.error(
-						"Unable to use keystore '" + customCertsFile.getAbsolutePath() + "'",
-						securityException);
-				throw securityException;
-			}
-		}
-		return false;
-	}
+        // Create an SSLContext that uses our TrustManager
+        final SSLContext context = SSLContext.getInstance("TLS");
+        context.init(null, tmf.getTrustManagers(), null);
+        connection.setSSLSocketFactory(context.getSocketFactory());
 
-	/**
-	 * Copy bytes from a large (over 2GB) <code>InputStream</code> to an
-	 * <code>OutputStream</code> showing the progress of the copy.
-	 *
-	 * @param input
-	 * @param output
-	 * @param contentLength
-	 * @return
-	 * @throws IOException
-	 */
-	protected static long copyLarge(
-			final InputStream input,
-			final OutputStream output,
-			final int contentLength )
-			throws IOException {
-		long count = 0;
-		int n = 0;
+        return true;
+      } catch (final GeneralSecurityException securityException) {
+        LOGGER.error(
+            "Unable to use keystore '" + customCertsFile.getAbsolutePath() + "'",
+            securityException);
+        throw securityException;
+      }
+    }
+    return false;
+  }
 
-		final byte[] buffer = new byte[4096];
-		final int EOF = -1;
-		int percentDone = 0, lastPercentDone = -1;
+  /**
+   * Copy bytes from a large (over 2GB) <code>InputStream</code> to an <code>OutputStream</code>
+   * showing the progress of the copy.
+   */
+  protected static long copyLarge(
+      final InputStream input,
+      final OutputStream output,
+      final int contentLength) throws IOException {
+    long count = 0;
+    int n = 0;
 
-		while (EOF != (n = input.read(buffer))) {
-			output.write(
-					buffer,
-					0,
-					n);
-			count += n;
+    final byte[] buffer = new byte[4096];
+    final int EOF = -1;
+    int percentDone = 0, lastPercentDone = -1;
 
-			if (contentLength != -1) {
-				percentDone = (int) ((100L * count) / contentLength);
+    while (EOF != (n = input.read(buffer))) {
+      output.write(buffer, 0, n);
+      count += n;
 
-				if (lastPercentDone != percentDone) {
-					lastPercentDone = percentDone;
+      if (contentLength != -1) {
+        percentDone = (int) ((100L * count) / contentLength);
 
-					if ((percentDone % 10) == 0) {
-						System.out.print(percentDone + "%");
-					}
-					else if ((percentDone % 3) == 0) {
-						System.out.print(".");
-					}
-				}
-			}
-		}
-		System.out.println();
-		return count;
-	}
+        if (lastPercentDone != percentDone) {
+          lastPercentDone = percentDone;
+
+          if ((percentDone % 10) == 0) {
+            System.out.print(percentDone + "%");
+          } else if ((percentDone % 3) == 0) {
+            System.out.print(".");
+          }
+        }
+      }
+    }
+    System.out.println();
+    return count;
+  }
 }

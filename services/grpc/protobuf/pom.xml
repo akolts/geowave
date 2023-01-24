@@ -5,7 +5,7 @@
 		<artifactId>geowave-service-parent</artifactId>
 		<groupId>org.locationtech.geowave</groupId>
 		<relativePath>../../</relativePath>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>2.0.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>geowave-grpc-protobuf</artifactId>
 	<name>GeoWave gRPC Protobuf Library with Proto3</name>
@@ -17,6 +17,11 @@
 		<dependency>
 			<groupId>io.grpc</groupId>
 			<artifactId>grpc-stub</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>javax.annotation</groupId>
+			<artifactId>javax.annotation-api</artifactId>
+			<version>1.3.2</version>
 		</dependency>
 	</dependencies>
 	<build>
@@ -47,14 +52,19 @@
 						<artifactId>geowave-grpc-protobuf-generator</artifactId>
 						<version>${project.version}</version>
 						<type>jar</type>
+						<exclusions>
+							<exclusion>
+								<groupId>org.glassfish</groupId>
+								<artifactId>javax.el</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 				</dependencies>
 			</plugin>
-
 			<plugin>
 				<groupId>com.github.os72</groupId>
 				<artifactId>protoc-jar-maven-plugin</artifactId>
-				<version>${protobuf.version}</version>
+				<version>${mavenprotoc.version}</version>
 				<executions>
 					<execution>
 						<phase>generate-sources</phase>
@@ -62,6 +72,7 @@
 							<goal>run</goal>
 						</goals>
 						<configuration>
+							<protocVersion>${protobuf.version}</protocVersion>
 							<protocArtifact>com.google.protobuf:protoc:${protobuf.version}</protocArtifact>
 							<inputDirectories>
 								<include>src/main/protobuf</include>
